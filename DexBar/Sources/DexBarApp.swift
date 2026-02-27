@@ -50,8 +50,10 @@ struct MenuBarLabel: View {
                     Image(nsImage: colorDot(nsColor: NSColor(monitor.readingColor), diameter: 7))
                 }
                 let delta = (monitor.showDelta ? monitor.formattedDelta(unit: monitor.unit) : nil).map { " \($0)" } ?? ""
-                Text(reading.menuBarLabel(unit: monitor.unit) + delta)
+                let stale = monitor.isStale ? " ⚠" : ""
+                Text(reading.menuBarLabel(unit: monitor.unit) + delta + stale)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(monitor.isStale ? .secondary : .primary)
             }
         } else if monitor.state == .loading {
             ProgressView()

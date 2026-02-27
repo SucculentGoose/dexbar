@@ -23,32 +23,45 @@ struct MenuBarView: View {
     // MARK: - Sections
 
     private var currentReadingSection: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(mainValueText)
-                    .font(.system(size: 36, weight: .semibold, design: .rounded))
-                    .foregroundStyle(readingColor)
-                Text(trendText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                statusBadge
-                if let updated = monitor.lastUpdated {
-                    Text(updated, style: .relative)
+        VStack(spacing: 0) {
+            if monitor.isStale {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("No new readings for 20+ min")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
-                if let next = monitor.nextRefreshDate {
-                    Text("Next: \(next, style: .relative)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                .foregroundStyle(.orange)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(.orange.opacity(0.12))
+            }
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mainValueText)
+                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                        .foregroundStyle(readingColor)
+                    Text(trendText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    statusBadge
+                    if let updated = monitor.lastUpdated {
+                        Text(updated, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    if let next = monitor.nextRefreshDate {
+                        Text("Next: \(next, style: .relative)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 
     private var chartSection: some View {

@@ -60,6 +60,13 @@ final class GlucoseMonitor {
     var alertLowThresholdMgdL: Double = 70
     var alertRisingFastEnabled: Bool = true
     var alertDroppingFastEnabled: Bool = true
+    var alertStaleDataEnabled: Bool = true
+    static let staleThreshold: TimeInterval = 20 * 60
+
+    var isStale: Bool {
+        guard let reading = currentReading else { return false }
+        return Date().timeIntervalSince(reading.date) > Self.staleThreshold
+    }
     var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
         didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
     }
@@ -187,6 +194,7 @@ final class GlucoseMonitor {
             lastUpdated = Date()
             state = .connected
             await evaluateAlerts(reading: reading)
+            await evaluateStaleAlert(reading: reading)
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired {
             // Try re-authenticating
@@ -197,6 +205,18 @@ final class GlucoseMonitor {
             state = .error(error.localizedDescription)
             scheduleTimer(after: currentReading?.date)
         }
+    }
+
+    private func evaluateStaleAlert(reading: GlucoseReading) async {
+        guard alertStaleDataEnabled else { return }
+        let age = Date().timeIntervalSince(reading.date)
+        guard age > Self.staleThreshold else { return }
+        let minutes = Int(age / 60)
+        await NotificationManager.shared.send(
+            type: .staleData,
+            title: "No New Readings",
+            body: "Last reading was \(minutes) minutes ago. Check your sensor."
+        )
     }
 
     private func evaluateAlerts(reading: GlucoseReading) async {

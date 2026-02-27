@@ -22,6 +22,7 @@ struct SettingsView: View {
     @AppStorage("alertLowMgdL") private var alertLowMgdL = 70.0
     @AppStorage("alertRisingFastEnabled") private var alertRisingFast = true
     @AppStorage("alertDroppingFastEnabled") private var alertDroppingFast = true
+    @AppStorage("alertStaleDataEnabled") private var alertStaleData = true
 
     private var region: DexcomRegion {
         DexcomRegion(rawValue: regionRaw) ?? .us
@@ -154,6 +155,10 @@ struct SettingsView: View {
                     .onChange(of: alertRisingFast) { _, v in monitor.alertRisingFastEnabled = v }
                 Toggle("Alert on dropping fast (↓ ⇊)", isOn: $alertDroppingFast)
                     .onChange(of: alertDroppingFast) { _, v in monitor.alertDroppingFastEnabled = v }
+            }
+            Section("No Data") {
+                Toggle("Alert when no new readings for 20 min", isOn: $alertStaleData)
+                    .onChange(of: alertStaleData) { _, v in monitor.alertStaleDataEnabled = v }
             }
         }
         .formStyle(.grouped)
