@@ -19,6 +19,7 @@
 		AA5D72FB1385E32A5D965DFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB6B960D0988B55727105E1A /* Assets.xcassets */; };
 		B17310E55FAF1244EDD7ED9E /* DexBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */; };
 		C900FB2031954BC5C53D0225 /* GlucoseMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634C1004F2B8A58F80A88BE /* GlucoseMonitor.swift */; };
+		E91737F93FDBCB658055BF32 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4FC70EA62672F320D31940 /* Color+Hex.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +35,7 @@
 /* Begin PBXFileReference section */
 		1634C1004F2B8A58F80A88BE /* GlucoseMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseMonitor.swift; sourceTree = "<group>"; };
 		1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexBarTests.swift; sourceTree = "<group>"; };
+		4F4FC70EA62672F320D31940 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		59A8EA3DEBC5E2873BE370D8 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		5B4FD6003D8EE6421750AC4F /* DexcomService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexcomService.swift; sourceTree = "<group>"; };
 		5DB82C51AEECA006305C528B /* DexBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DexBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -80,6 +82,7 @@
 		2C3C217EC31AEBBDDB5B3CF1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				4F4FC70EA62672F320D31940 /* Color+Hex.swift */,
 				C76143987BADBB79390FD28A /* GlucoseReading.swift */,
 			);
 			path = Models;
@@ -247,6 +250,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E91737F93FDBCB658055BF32 /* Color+Hex.swift in Sources */,
 				203C1F97C596E3B9E65C4DEA /* DexBarApp.swift in Sources */,
 				6EB78758C4ADB1438C1D7AF1 /* DexcomService.swift in Sources */,
 				903C3C1CA07FE954674BA6E2 /* GlucoseChartView.swift in Sources */,

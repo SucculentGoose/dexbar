@@ -54,10 +54,14 @@ final class GlucoseMonitor {
     var refreshInterval: TimeInterval = 5 * 60
 
     // Alert settings
+    var alertUrgentHighEnabled: Bool = true
+    var alertUrgentHighThresholdMgdL: Double = 250
     var alertHighEnabled: Bool = true
     var alertHighThresholdMgdL: Double = 180
     var alertLowEnabled: Bool = true
     var alertLowThresholdMgdL: Double = 70
+    var alertUrgentLowEnabled: Bool = true
+    var alertUrgentLowThresholdMgdL: Double = 55
     var alertRisingFastEnabled: Bool = true
     var alertDroppingFastEnabled: Bool = true
     var alertStaleDataEnabled: Bool = true
@@ -66,6 +70,23 @@ final class GlucoseMonitor {
     var isStale: Bool {
         guard let reading = currentReading else { return false }
         return Date().timeIntervalSince(reading.date) > Self.staleThreshold
+    }
+
+    // Zone colors (persisted in UserDefaults as hex strings)
+    var colorUrgentLow: Color = Color(hex: UserDefaults.standard.string(forKey: "colorUrgentLow") ?? "") ?? Color(red: 0.85, green: 0.1, blue: 0.1) {
+        didSet { if let h = colorUrgentLow.toHex() { UserDefaults.standard.set(h, forKey: "colorUrgentLow") } }
+    }
+    var colorLow: Color = Color(hex: UserDefaults.standard.string(forKey: "colorLow") ?? "") ?? .orange {
+        didSet { if let h = colorLow.toHex() { UserDefaults.standard.set(h, forKey: "colorLow") } }
+    }
+    var colorInRange: Color = Color(hex: UserDefaults.standard.string(forKey: "colorInRange") ?? "") ?? .green {
+        didSet { if let h = colorInRange.toHex() { UserDefaults.standard.set(h, forKey: "colorInRange") } }
+    }
+    var colorHigh: Color = Color(hex: UserDefaults.standard.string(forKey: "colorHigh") ?? "") ?? .yellow {
+        didSet { if let h = colorHigh.toHex() { UserDefaults.standard.set(h, forKey: "colorHigh") } }
+    }
+    var colorUrgentHigh: Color = Color(hex: UserDefaults.standard.string(forKey: "colorUrgentHigh") ?? "") ?? Color(red: 0.85, green: 0.1, blue: 0.1) {
+        didSet { if let h = colorUrgentHigh.toHex() { UserDefaults.standard.set(h, forKey: "colorUrgentHigh") } }
     }
     var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
         didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
@@ -92,12 +113,12 @@ final class GlucoseMonitor {
 
     var readingColor: Color {
         guard let reading = currentReading else { return .primary }
-        let val = Double(reading.value)
-        if val < alertLowThresholdMgdL || val > alertHighThresholdMgdL { return .red }
-        let warnLow = alertLowThresholdMgdL + 20
-        let warnHigh = alertHighThresholdMgdL - 20
-        if val < warnLow || val > warnHigh { return .yellow }
-        return .green
+        let v = Double(reading.value)
+        if v < alertUrgentLowThresholdMgdL  { return colorUrgentLow  }
+        if v < alertLowThresholdMgdL         { return colorLow         }
+        if v > alertUrgentHighThresholdMgdL { return colorUrgentHigh }
+        if v > alertHighThresholdMgdL        { return colorHigh        }
+        return colorInRange
     }
 
     private var service: DexcomService?
@@ -223,37 +244,31 @@ final class GlucoseMonitor {
         let nm = NotificationManager.shared
         let displayVal = reading.displayValue(unit: unit)
         let unitStr = unit.rawValue
+        let v = Double(reading.value)
 
-        if alertHighEnabled, Double(reading.value) > alertHighThresholdMgdL {
-            await nm.send(
-                type: .high,
-                title: "High Blood Sugar",
-                body: "\(displayVal) \(unitStr) — above your high alert threshold"
-            )
+        if alertUrgentHighEnabled, v > alertUrgentHighThresholdMgdL {
+            await nm.send(type: .urgentHigh, title: "Urgent High Blood Sugar",
+                body: "\(displayVal) \(unitStr) — urgently above your high threshold")
+        } else if alertHighEnabled, v > alertHighThresholdMgdL {
+            await nm.send(type: .high, title: "High Blood Sugar",
+                body: "\(displayVal) \(unitStr) — above your high alert threshold")
         }
 
-        if alertLowEnabled, Double(reading.value) < alertLowThresholdMgdL {
-            await nm.send(
-                type: .low,
-                title: "Low Blood Sugar",
-                body: "\(displayVal) \(unitStr) — below your low alert threshold"
-            )
+        if alertUrgentLowEnabled, v < alertUrgentLowThresholdMgdL {
+            await nm.send(type: .urgentLow, title: "Urgent Low Blood Sugar",
+                body: "\(displayVal) \(unitStr) — urgently below your low threshold")
+        } else if alertLowEnabled, v < alertLowThresholdMgdL {
+            await nm.send(type: .low, title: "Low Blood Sugar",
+                body: "\(displayVal) \(unitStr) — below your low alert threshold")
         }
 
         if alertRisingFastEnabled, reading.trend.isRisingFast {
-            await nm.send(
-                type: .risingFast,
-                title: "Blood Sugar Rising Fast",
-                body: "\(displayVal) \(unitStr) and \(reading.trend.description)"
-            )
+            await nm.send(type: .risingFast, title: "Blood Sugar Rising Fast",
+                body: "\(displayVal) \(unitStr) and \(reading.trend.description)")
         }
-
         if alertDroppingFastEnabled, reading.trend.isDroppingFast {
-            await nm.send(
-                type: .droppingFast,
-                title: "Blood Sugar Dropping Fast",
-                body: "\(displayVal) \(unitStr) and \(reading.trend.description)"
-            )
+            await nm.send(type: .droppingFast, title: "Blood Sugar Dropping Fast",
+                body: "\(displayVal) \(unitStr) and \(reading.trend.description)")
         }
     }
 }

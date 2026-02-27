@@ -9,7 +9,7 @@ actor NotificationManager {
     private let cooldown: TimeInterval = 15 * 60 // 15 minutes between same-type alerts
 
     enum AlertType: String {
-        case high, low, risingFast, droppingFast, staleData
+        case urgentHigh, high, urgentLow, low, risingFast, droppingFast, staleData
     }
 
     func requestPermission() async {

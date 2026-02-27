@@ -174,11 +174,11 @@ struct GlucoseChartView: View {
 
     private func colorFor(_ reading: GlucoseReading) -> Color {
         let v = Double(reading.value)
-        if v < monitor.alertLowThresholdMgdL || v > monitor.alertHighThresholdMgdL { return .red }
-        let warnLow = monitor.alertLowThresholdMgdL + 20
-        let warnHigh = monitor.alertHighThresholdMgdL - 20
-        if v < warnLow || v > warnHigh { return .yellow }
-        return .green
+        if v < monitor.alertUrgentLowThresholdMgdL  { return monitor.colorUrgentLow  }
+        if v < monitor.alertLowThresholdMgdL         { return monitor.colorLow         }
+        if v > monitor.alertUrgentHighThresholdMgdL { return monitor.colorUrgentHigh }
+        if v > monitor.alertHighThresholdMgdL        { return monitor.colorHigh        }
+        return monitor.colorInRange
     }
 
     private var xAxisStride: Int {

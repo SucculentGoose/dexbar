@@ -16,13 +16,19 @@ struct SettingsView: View {
     @AppStorage("refreshIntervalMinutes") private var refreshMinutes = 5.0
 
     // Alerts
-    @AppStorage("alertHighEnabled") private var alertHighEnabled = true
-    @AppStorage("alertHighMgdL") private var alertHighMgdL = 180.0
-    @AppStorage("alertLowEnabled") private var alertLowEnabled = true
-    @AppStorage("alertLowMgdL") private var alertLowMgdL = 70.0
-    @AppStorage("alertRisingFastEnabled") private var alertRisingFast = true
+    @AppStorage("alertUrgentHighEnabled") private var alertUrgentHigh = true
+    @AppStorage("alertUrgentHighMgdL")    private var urgentHighMgdL  = 250.0
+    @AppStorage("alertHighEnabled")       private var alertHighEnabled = true
+    @AppStorage("alertHighMgdL")          private var alertHighMgdL    = 180.0
+    @AppStorage("alertLowEnabled")        private var alertLowEnabled  = true
+    @AppStorage("alertLowMgdL")           private var alertLowMgdL     = 70.0
+    @AppStorage("alertUrgentLowEnabled")  private var alertUrgentLow   = true
+    @AppStorage("alertUrgentLowMgdL")     private var urgentLowMgdL    = 55.0
+    @AppStorage("alertRisingFastEnabled") private var alertRisingFast  = true
     @AppStorage("alertDroppingFastEnabled") private var alertDroppingFast = true
-    @AppStorage("alertStaleDataEnabled") private var alertStaleData = true
+    @AppStorage("alertStaleDataEnabled")  private var alertStaleData   = true
+
+    private let minGap = 5.0   // minimum mg/dL gap between adjacent thresholds
 
     private var region: DexcomRegion {
         DexcomRegion(rawValue: regionRaw) ?? .us
@@ -89,13 +95,18 @@ struct SettingsView: View {
         return Form {
             Section("Menu Bar") {
                 Toggle("Color-coded indicator dot", isOn: $monitor.coloredMenuBar)
-                Text("Shows a green, yellow, or red dot next to the reading based on your alert thresholds.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text("Shows a colored dot next to the reading based on your threshold zones.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Show delta", isOn: $monitor.showDelta)
                 Text("Appends the change from the previous reading (e.g. +3 or −0.2) next to the value.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Range Colors") {
+                colorRow("Urgent Low  (< \(thresholdLabel(urgentLowMgdL)))",  color: $monitor.colorUrgentLow)
+                colorRow("Low  (\(thresholdLabel(urgentLowMgdL))–\(thresholdLabel(alertLowMgdL)))",         color: $monitor.colorLow)
+                colorRow("In Range  (\(thresholdLabel(alertLowMgdL))–\(thresholdLabel(alertHighMgdL)))",   color: $monitor.colorInRange)
+                colorRow("High  (\(thresholdLabel(alertHighMgdL))–\(thresholdLabel(urgentHighMgdL)))",     color: $monitor.colorHigh)
+                colorRow("Urgent High  (> \(thresholdLabel(urgentHighMgdL)))", color: $monitor.colorUrgentHigh)
             }
             Section("Units") {
                 Picker("Blood sugar unit", selection: $unitRaw) {
@@ -104,9 +115,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: unitRaw) { _, new in
-                    monitor.unit = GlucoseUnit(rawValue: new) ?? .mgdL
-                }
+                .onChange(of: unitRaw) { _, new in monitor.unit = GlucoseUnit(rawValue: new) ?? .mgdL }
             }
             Section("Refresh Interval") {
                 Picker("Refresh every", selection: $refreshMinutes) {
@@ -116,38 +125,65 @@ struct SettingsView: View {
                     Text("10 minutes").tag(10.0)
                     Text("15 minutes").tag(15.0)
                 }
-                .onChange(of: refreshMinutes) { _, new in
-                    monitor.updateRefreshInterval(new * 60)
-                }
+                .onChange(of: refreshMinutes) { _, new in monitor.updateRefreshInterval(new * 60) }
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func colorRow(_ label: String, color: Binding<Color>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            ColorPicker("", selection: color, supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 28)
+        }
+    }
+
+    private func thresholdLabel(_ mgdL: Double) -> String {
+        unit == .mmolL ? String(format: "%.1f", mgdL / 18.0) : "\(Int(mgdL))"
     }
 
     // MARK: - Alerts Tab
 
     private var alertsTab: some View {
         Form {
-            Section("High Alert") {
-                Toggle("Alert when above", isOn: $alertHighEnabled)
-                    .onChange(of: alertHighEnabled) { _, v in monitor.alertHighEnabled = v }
-                if alertHighEnabled {
-                    thresholdSlider(
-                        value: $alertHighMgdL,
-                        range: 120...400,
-                        label: "High threshold"
-                    ) { monitor.alertHighThresholdMgdL = $0 }
+            Section {
+                Text("Thresholds define color zones and optional notifications. Values must stay ordered: Urgent Low < Low < High < Urgent High.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Urgent High") {
+                Toggle("Alert when urgently high", isOn: $alertUrgentHigh)
+                    .onChange(of: alertUrgentHigh) { _, v in monitor.alertUrgentHighEnabled = v }
+                thresholdSlider(value: $urgentHighMgdL, range: 181...400, label: "Urgent High") { newVal in
+                    urgentHighMgdL = max(newVal, alertHighMgdL + minGap)
+                    monitor.alertUrgentHighThresholdMgdL = urgentHighMgdL
                 }
             }
-            Section("Low Alert") {
-                Toggle("Alert when below", isOn: $alertLowEnabled)
+            Section("High") {
+                Toggle("Alert when high", isOn: $alertHighEnabled)
+                    .onChange(of: alertHighEnabled) { _, v in monitor.alertHighEnabled = v }
+                thresholdSlider(value: $alertHighMgdL, range: 120...399, label: "High") { newVal in
+                    alertHighMgdL = min(max(newVal, alertLowMgdL + minGap), urgentHighMgdL - minGap)
+                    monitor.alertHighThresholdMgdL = alertHighMgdL
+                }
+            }
+            Section("Low") {
+                Toggle("Alert when low", isOn: $alertLowEnabled)
                     .onChange(of: alertLowEnabled) { _, v in monitor.alertLowEnabled = v }
-                if alertLowEnabled {
-                    thresholdSlider(
-                        value: $alertLowMgdL,
-                        range: 40...120,
-                        label: "Low threshold"
-                    ) { monitor.alertLowThresholdMgdL = $0 }
+                thresholdSlider(value: $alertLowMgdL, range: 56...180, label: "Low") { newVal in
+                    alertLowMgdL = min(max(newVal, urgentLowMgdL + minGap), alertHighMgdL - minGap)
+                    monitor.alertLowThresholdMgdL = alertLowMgdL
+                }
+            }
+            Section("Urgent Low") {
+                Toggle("Alert when urgently low", isOn: $alertUrgentLow)
+                    .onChange(of: alertUrgentLow) { _, v in monitor.alertUrgentLowEnabled = v }
+                thresholdSlider(value: $urgentLowMgdL, range: 40...109, label: "Urgent Low") { newVal in
+                    urgentLowMgdL = min(newVal, alertLowMgdL - minGap)
+                    monitor.alertUrgentLowThresholdMgdL = urgentLowMgdL
                 }
             }
             Section("Trend Alerts") {
