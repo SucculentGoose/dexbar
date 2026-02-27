@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    name: Build & Package
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (ad-hoc signed)
+        run: |
+          xcodebuild \
+            -project DexBar.xcodeproj \
+            -scheme DexBar \
+            -configuration Release \
+            -archivePath build/DexBar.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export .app
+        run: |
+          mkdir -p build/export
+          cp -R build/DexBar.xcarchive/Products/Applications/DexBar.app build/export/DexBar.app
+
+      - name: Create .zip
+        run: |
+          cd build/export
+          zip -r ../../DexBar-${{ github.ref_name }}.zip DexBar.app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DexBar ${{ github.ref_name }}
+          body: |
+            ## DexBar ${{ github.ref_name }}
+
+            ### Installation
+            1. Download **DexBar-${{ github.ref_name }}.zip** below
+            2. Unzip and drag **DexBar.app** to your `/Applications` folder
+            3. Right-click → **Open** the first time to bypass Gatekeeper (required for unsigned apps)
+            4. Click the icon in your menu bar → **Settings** → enter your Dexcom credentials
+
+            > This build is unsigned. macOS will warn you on first launch — right-click → Open to proceed.
+          files: DexBar-${{ github.ref_name }}.zip

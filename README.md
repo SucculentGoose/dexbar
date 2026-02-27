@@ -1,0 +1,116 @@
+> **Medical Disclaimer:** DexBar is an unofficial, personal convenience tool and is **not a medical device**. It is not intended to be used for medical decisions, treatment, or diagnosis. Always use your official Dexcom receiver, app, or other clinically approved methods to verify your blood glucose before making any medical decisions. Do not rely solely on this app.
+
+# DexBar
+
+A native macOS menu bar app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API.
+
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-6-orange)
+
+## Features
+
+- **Live readings** — displays your current blood sugar value and trend arrow in the menu bar (e.g. `94 →`)
+- **Auto-refresh** — polls Dexcom every 5 minutes, timed to the actual reading timestamp so refreshes stay aligned even after manual refreshes
+- **mg/dL or mmol/L** — toggle units in Settings
+- **Configurable alerts** — macOS notifications for:
+  - High blood sugar (above a threshold you set)
+  - Low blood sugar (below a threshold you set)
+  - Rising fast (↑ ⇈)
+  - Dropping fast (↓ ⇊)
+- **Alert cooldowns** — same-type alerts won't repeat within 15 minutes
+- **Secure credential storage** — username and password stored in macOS Keychain
+- **Auto-connect on launch** — reconnects automatically using saved credentials
+- **Region support** — US, Outside US, and Japan Dexcom Share endpoints
+
+## Requirements
+
+- macOS 14 Sonoma or later
+- A Dexcom account with [Share enabled](https://provider.dexcom.com/education-research/cgm-education-use/videos/setting-dexcom-share-and-follow) and at least one follower set up
+- Xcode 15+ (to build from source)
+
+## Getting Started
+
+### Download (easiest)
+
+1. Go to the [Releases](../../releases) page and download the latest `DexBar-vX.X.X.zip`
+2. Unzip and drag **DexBar.app** to your `/Applications` folder
+3. **Right-click → Open** the first time — macOS will warn about an unidentified developer since the app is unsigned; clicking Open bypasses this once
+4. Click the menu bar icon → **Settings…** → enter your Dexcom credentials and click **Connect**
+
+### Build from source
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/your-username/dexbar.git
+   cd dexbar
+   ```
+
+2. Generate the Xcode project (requires [xcodegen](https://github.com/yonaskolb/XcodeGen)):
+   ```bash
+   brew install xcodegen
+   xcodegen generate
+   ```
+
+3. Open the project in Xcode:
+   ```bash
+   open DexBar.xcodeproj
+   ```
+
+4. Select your Team under **Signing & Capabilities**, then build and run (`⌘R`).
+
+### First-time setup
+
+1. Click the `〜` icon in your menu bar
+2. Click **Settings…**
+3. Enter your Dexcom username, password, and region
+4. Click **Connect**
+
+Your credentials are saved to the macOS Keychain. From this point on, DexBar will connect automatically every time it launches.
+
+## Settings
+
+| Setting | Description |
+|---|---|
+| Username / Password | Your Dexcom Share account credentials |
+| Region | US / Outside US / Japan |
+| Units | mg/dL or mmol/L |
+| Refresh interval | 1, 2, 5, 10, or 15 minutes |
+| High alert threshold | Notify when BG exceeds this value |
+| Low alert threshold | Notify when BG falls below this value |
+| Rising fast alert | Notify on SingleUp or DoubleUp trend |
+| Dropping fast alert | Notify on SingleDown or DoubleDown trend |
+
+## How it works
+
+DexBar uses the **Dexcom Share API** — the same service used by Dexcom's follower app. It requires your (or the patient's) Dexcom credentials, not a follower's credentials.
+
+API endpoints used:
+- `POST /General/AuthenticatePublisherAccount` — authenticates and returns an account ID
+- `POST /General/LoginPublisherAccountById` — exchanges account ID + password for a session token
+- `GET /Publisher/ReadPublisherLatestGlucoseValues` — fetches the latest glucose reading
+
+> **Note:** Dexcom Stelo is not compatible with the Share service and is not supported.
+
+## Project structure
+
+```
+DexBar/
+├── Sources/
+│   ├── DexBarApp.swift               # App entry point, MenuBarExtra
+│   ├── Models/
+│   │   └── GlucoseReading.swift      # Data model, trend enum, unit conversion
+│   ├── Services/
+│   │   ├── DexcomService.swift       # Dexcom Share API client (async/await)
+│   │   └── KeychainService.swift     # Secure credential storage
+│   ├── Managers/
+│   │   ├── GlucoseMonitor.swift      # Polling loop, alert evaluation
+│   │   └── NotificationManager.swift # macOS notification delivery
+│   └── Views/
+│       ├── MenuBarView.swift         # Popover UI
+│       └── SettingsView.swift        # Settings window
+└── Assets.xcassets/
+```
+
+## License
+
+MIT
