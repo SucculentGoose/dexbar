@@ -27,6 +27,7 @@ struct DexBarApp: App {
 }
 
 /// Holds the Sparkle updater controller for the lifetime of the app.
+@MainActor
 final class SparkleController: ObservableObject {
     let controller: SPUStandardUpdaterController
     var updater: SPUUpdater { controller.updater }

@@ -107,8 +107,11 @@ struct GlucoseChartView: View {
                     .onContinuousHover { phase in
                         switch phase {
                         case .active(let location):
-                            let origin = geo[proxy.plotAreaFrame].origin
-                            let adjustedX = location.x - origin.x
+                            guard let plotFrame = proxy.plotFrame else {
+                                hoveredReading = nil
+                                return
+                            }
+                            let adjustedX = location.x - geo[plotFrame].origin.x
                             guard let date: Date = proxy.value(atX: adjustedX) else {
                                 hoveredReading = nil
                                 return
