@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 enum MonitorState: Equatable {
     case idle
@@ -37,26 +38,38 @@ final class GlucoseMonitor {
     var alertLowThresholdMgdL: Double = 70
     var alertRisingFastEnabled: Bool = true
     var alertDroppingFastEnabled: Bool = true
+    var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
+        didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
+    }
+
+    var readingColor: Color {
+        guard let reading = currentReading else { return .primary }
+        let val = Double(reading.value)
+        if val < alertLowThresholdMgdL || val > alertHighThresholdMgdL { return .red }
+        let warnLow = alertLowThresholdMgdL + 20
+        let warnHigh = alertHighThresholdMgdL - 20
+        if val < warnLow || val > warnHigh { return .yellow }
+        return .green
+    }
 
     private var service: DexcomService?
     private var timer: Timer?
     var nextRefreshDate: Date?
 
     init() {
-        // Listen for auto-connect triggered by AppDelegate at launch
-        NotificationCenter.default.addObserver(
-            forName: .autoConnect,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let self,
-                  let username = note.userInfo?["username"] as? String,
-                  let password = note.userInfo?["password"] as? String,
-                  let region = note.userInfo?["region"] as? DexcomRegion else { return }
-            Task { @MainActor in
-                await self.start(username: username, password: password, region: region)
-            }
+        Task { @MainActor in
+            await autoConnectIfNeeded()
         }
+    }
+
+    private func autoConnectIfNeeded() async {
+        let username = UserDefaults.standard.string(forKey: "dexcomUsername") ?? ""
+        let regionRaw = UserDefaults.standard.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
+        guard !username.isEmpty,
+              let password = try? KeychainService.load(key: "password"),
+              !password.isEmpty else { return }
+        let region = DexcomRegion(rawValue: regionRaw) ?? .us
+        await start(username: username, password: password, region: region)
     }
 
     // MARK: - Lifecycle

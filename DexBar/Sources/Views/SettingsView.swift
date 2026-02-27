@@ -81,7 +81,14 @@ struct SettingsView: View {
     // MARK: - Display Tab
 
     private var displayTab: some View {
-        Form {
+        @Bindable var monitor = monitor
+        return Form {
+            Section("Menu Bar") {
+                Toggle("Color-coded indicator dot", isOn: $monitor.coloredMenuBar)
+                Text("Shows a green, yellow, or red dot next to the reading based on your alert thresholds.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Units") {
                 Picker("Blood sugar unit", selection: $unitRaw) {
                     ForEach(GlucoseUnit.allCases, id: \.rawValue) { u in

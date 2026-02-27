@@ -92,8 +92,10 @@ struct MenuBarView: View {
             Divider()
 
             Button {
-                NSApp.activate(ignoringOtherApps: true)
-                openSettings()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    openSettings()
+                    NSApp.activate(ignoringOtherApps: true)
+                }
             } label: {
                 Label("Settings…", systemImage: "gear")
             }
@@ -128,17 +130,7 @@ struct MenuBarView: View {
     }
 
     private var readingColor: Color {
-        guard let reading = monitor.currentReading else { return .secondary }
-        let val = Double(reading.value)
-        if val < monitor.alertLowThresholdMgdL || val > monitor.alertHighThresholdMgdL {
-            return .red
-        }
-        let warnLow = monitor.alertLowThresholdMgdL + 20
-        let warnHigh = monitor.alertHighThresholdMgdL - 20
-        if val < warnLow || val > warnHigh {
-            return .yellow
-        }
-        return .green
+        monitor.readingColor
     }
 
     private var statusBadge: some View {

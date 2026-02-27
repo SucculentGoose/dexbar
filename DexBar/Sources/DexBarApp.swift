@@ -3,17 +3,15 @@ import AppKit
 
 @main
 struct DexBarApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var monitor = GlucoseMonitor()
-    @AppStorage("dexcomUsername") private var username = ""
-    @AppStorage("dexcomRegion") private var regionRaw = DexcomRegion.us.rawValue
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environment(monitor)
         } label: {
-            menuBarLabel
+            MenuBarLabel()
+                .environment(monitor)
         }
         .menuBarExtraStyle(.window)
 
@@ -22,12 +20,20 @@ struct DexBarApp: App {
                 .environment(monitor)
         }
     }
+}
 
-    @ViewBuilder
-    private var menuBarLabel: some View {
+struct MenuBarLabel: View {
+    @Environment(GlucoseMonitor.self) private var monitor
+
+    var body: some View {
         if let reading = monitor.currentReading {
-            Text(reading.menuBarLabel(unit: monitor.unit))
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+            HStack(spacing: 4) {
+                if monitor.coloredMenuBar {
+                    Image(nsImage: colorDot(nsColor: NSColor(monitor.readingColor), diameter: 7))
+                }
+                Text(reading.menuBarLabel(unit: monitor.unit))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+            }
         } else if monitor.state == .loading {
             ProgressView()
                 .scaleEffect(0.5)
@@ -36,28 +42,14 @@ struct DexBarApp: App {
             Image(systemName: "waveform.path.ecg")
         }
     }
-}
 
-// MARK: - AppDelegate
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        let username = UserDefaults.standard.string(forKey: "dexcomUsername") ?? ""
-        let regionRaw = UserDefaults.standard.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
-        guard !username.isEmpty,
-              let password = try? KeychainService.load(key: "password"),
-              !password.isEmpty else { return }
-        let region = DexcomRegion(rawValue: regionRaw) ?? .us
-        Task { @MainActor in
-            NotificationCenter.default.post(
-                name: .autoConnect,
-                object: nil,
-                userInfo: ["username": username, "password": password, "region": region]
-            )
+    private func colorDot(nsColor: NSColor, diameter: CGFloat) -> NSImage {
+        let image = NSImage(size: NSSize(width: diameter, height: diameter), flipped: false) { rect in
+            nsColor.setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            return true
         }
+        image.isTemplate = false
+        return image
     }
-}
-
-extension Notification.Name {
-    static let autoConnect = Notification.Name("DexBarAutoConnect")
 }

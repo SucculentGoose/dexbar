@@ -44,3 +44,4 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dexbar.app
         INFOPLIST_FILE: DexBar/Info.plist
         CODE_SIGN_ENTITLEMENTS: DexBar/DexBar.entitlements
+        CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
