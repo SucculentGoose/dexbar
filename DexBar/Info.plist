@@ -28,5 +28,11 @@
 	<string>NSApplication</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>DexBar sends alerts for blood sugar levels.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/SucculentGoose/dexbar/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>lph61xMGvNVzuOOFx95/0S9GvWAzZdvfUrYqxQJJkQA=</string>
 </dict>
 </plist>

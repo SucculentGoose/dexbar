@@ -1,7 +1,9 @@
 import SwiftUI
+import Sparkle
 
 struct SettingsView: View {
     @Environment(GlucoseMonitor.self) private var monitor
+    @Environment(SPUUpdater.self) private var updater
 
     // Account
     @AppStorage("dexcomUsername") private var username = ""
@@ -39,6 +41,8 @@ struct SettingsView: View {
                 .tabItem { Label("Alerts", systemImage: "bell") }
             disclaimerTab
                 .tabItem { Label("Disclaimer", systemImage: "exclamationmark.triangle") }
+            updatesTab
+                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
         }
         .frame(width: 400)
         .padding(20)
@@ -264,5 +268,29 @@ struct SettingsView: View {
         default:
             connectionStatus = ""
         }
+    }
+
+    // MARK: - Updates Tab
+
+    private var updatesTab: some View {
+        Form {
+            Section("Automatic Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.automaticallyChecksForUpdates = $0 }
+                ))
+                Toggle("Automatically download updates", isOn: Binding(
+                    get: { updater.automaticallyDownloadsUpdates },
+                    set: { updater.automaticallyDownloadsUpdates = $0 }
+                ))
+            }
+            Section {
+                Button("Check for Updates Now") {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
+            }
+        }
+        .formStyle(.grouped)
     }
 }

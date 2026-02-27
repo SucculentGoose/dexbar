@@ -1,14 +1,17 @@
 import SwiftUI
 import AppKit
+import Sparkle
 
 @main
 struct DexBarApp: App {
     @State private var monitor = GlucoseMonitor()
+    private let sparkle = SparkleController()
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environment(monitor)
+                .environment(sparkle.updater)
         } label: {
             MenuBarLabel()
                 .environment(monitor)
@@ -18,7 +21,22 @@ struct DexBarApp: App {
         Settings {
             SettingsView()
                 .environment(monitor)
+                .environment(sparkle.updater)
         }
+    }
+}
+
+/// Holds the Sparkle updater controller for the lifetime of the app.
+final class SparkleController {
+    let controller: SPUStandardUpdaterController
+    var updater: SPUUpdater { controller.updater }
+
+    init() {
+        controller = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
     }
 }
 

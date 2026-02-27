@@ -13,6 +13,11 @@ settings:
     CODE_SIGN_STYLE: Automatic
     MACOSX_DEPLOYMENT_TARGET: "14.0"
 
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
+
 targets:
   DexBar:
     type: application
@@ -34,6 +39,12 @@ targets:
         LSUIElement: true
         NSUserNotificationsUsageDescription: "DexBar sends alerts for blood sugar levels."
         NSHumanReadableDescription: "Blood sugar readings from Dexcom in your menu bar."
+        SUFeedURL: "https://raw.githubusercontent.com/SucculentGoose/dexbar/main/appcast.xml"
+        SUEnableAutomaticChecks: true
+        SUPublicEDKey: "lph61xMGvNVzuOOFx95/0S9GvWAzZdvfUrYqxQJJkQA="
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
     entitlements:
       path: DexBar/DexBar.entitlements
       properties:

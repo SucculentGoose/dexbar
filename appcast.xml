@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>DexBar</title>
+        <link>https://github.com/SucculentGoose/dexbar</link>
+        <description>DexBar releases</description>
+        <language>en</language>
+        <!-- Releases are added here automatically by the GitHub Actions release workflow -->
+    </channel>
+</rss>

@@ -1,7 +1,9 @@
 import SwiftUI
+import Sparkle
 
 struct MenuBarView: View {
     @Environment(GlucoseMonitor.self) private var monitor
+    @Environment(SPUUpdater.self) private var updater
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -86,6 +88,18 @@ struct MenuBarView: View {
                 Label("Refresh Now", systemImage: "arrow.clockwise")
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            Button {
+                updater.checkForUpdates()
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.plain)
+            .disabled(!updater.canCheckForUpdates)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
 
