@@ -50,9 +50,9 @@ actor DexcomService {
         self.sessionID = session
     }
 
-    func getLatestReading() async throws -> GlucoseReading {
+    func getLatestReadings() async throws -> [GlucoseReading] {
         guard let session = sessionID else { throw DexcomError.sessionExpired }
-        return try await fetchReading(sessionID: session)
+        return try await fetchReadings(sessionID: session)
     }
 
     func clearSession() {
@@ -98,23 +98,22 @@ actor DexcomService {
         return sessionID
     }
 
-    private func fetchReading(sessionID: String) async throws -> GlucoseReading {
+    private func fetchReadings(sessionID: String) async throws -> [GlucoseReading] {
         var components = URLComponents(string: "\(region.baseURL)/Publisher/ReadPublisherLatestGlucoseValues")!
         components.queryItems = [
             URLQueryItem(name: "sessionId", value: sessionID),
             URLQueryItem(name: "minutes", value: "1440"),
-            URLQueryItem(name: "maxCount", value: "1"),
+            URLQueryItem(name: "maxCount", value: "2"),
         ]
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await performRequest(request)
         try validateResponse(response, data: data)
-        let readings = try JSONDecoder().decode([DexcomRawReading].self, from: data)
-        guard let first = readings.first, let reading = first.toGlucoseReading() else {
-            throw DexcomError.noReadings
-        }
-        return reading
+        let raw = try JSONDecoder().decode([DexcomRawReading].self, from: data)
+        let readings = raw.compactMap { $0.toGlucoseReading() }
+        guard !readings.isEmpty else { throw DexcomError.noReadings }
+        return readings
     }
 
     private func urlRequest(path: String) -> URLRequest {

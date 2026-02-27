@@ -41,6 +41,25 @@ final class GlucoseMonitor {
     var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
         didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
     }
+    var showDelta: Bool = UserDefaults.standard.object(forKey: "showDelta") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showDelta, forKey: "showDelta") }
+    }
+
+    var glucoseDelta: Int? {
+        guard recentReadings.count >= 2 else { return nil }
+        return recentReadings[0].value - recentReadings[1].value
+    }
+
+    func formattedDelta(unit: GlucoseUnit) -> String? {
+        guard let delta = glucoseDelta else { return nil }
+        switch unit {
+        case .mgdL:
+            return delta >= 0 ? "+\(delta)" : "\(delta)"
+        case .mmolL:
+            let dMmol = Double(delta) / 18.0
+            return dMmol >= 0 ? String(format: "+%.1f", dMmol) : String(format: "%.1f", dMmol)
+        }
+    }
 
     var readingColor: Color {
         guard let reading = currentReading else { return .primary }
@@ -134,13 +153,15 @@ final class GlucoseMonitor {
         guard let service else { return }
         state = .loading
         do {
-            let reading = try await service.getLatestReading()
+            let readings = try await service.getLatestReadings()
+            let reading = readings[0]
             currentReading = reading
-            recentReadings = ([reading] + recentReadings).prefix(5).map { $0 }
+            // Merge new readings into history (newest first), cap at 5
+            let merged = (readings + recentReadings).sorted { $0.date > $1.date }
+            recentReadings = Array(merged.prefix(5))
             lastUpdated = Date()
             state = .connected
             await evaluateAlerts(reading: reading)
-            // Always reschedule based on the reading's timestamp, even after a manual refresh
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired {
             // Try re-authenticating

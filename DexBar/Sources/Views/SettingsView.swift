@@ -88,6 +88,10 @@ struct SettingsView: View {
                 Text("Shows a green, yellow, or red dot next to the reading based on your alert thresholds.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Show delta", isOn: $monitor.showDelta)
+                Text("Appends the change from the previous reading (e.g. +3 or −0.2) next to the value.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Units") {
                 Picker("Blood sugar unit", selection: $unitRaw) {

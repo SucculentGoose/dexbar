@@ -50,6 +50,8 @@ struct GlucoseReading: Identifiable, Sendable {
     let value: Int          // always stored as mg/dL
     let trend: GlucoseTrend
     let date: Date
+    /// Rate of change in mg/dL per minute, as provided by the Dexcom API.
+    let trendRate: Double?
 
     var mmolL: Double { Double(value) / 18.0 }
 
@@ -100,7 +102,7 @@ struct DexcomRawReading: Decodable {
         guard let ms = Double(msStr) else { return nil }
         let date = Date(timeIntervalSince1970: ms / 1000.0)
         let glucoseTrend = Self.trendMap[trend] ?? .none
-        return GlucoseReading(value: value, trend: glucoseTrend, date: date)
+        return GlucoseReading(value: value, trend: glucoseTrend, date: date, trendRate: trendRate)
     }
 }
 

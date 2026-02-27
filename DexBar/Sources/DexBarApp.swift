@@ -31,7 +31,8 @@ struct MenuBarLabel: View {
                 if monitor.coloredMenuBar {
                     Image(nsImage: colorDot(nsColor: NSColor(monitor.readingColor), diameter: 7))
                 }
-                Text(reading.menuBarLabel(unit: monitor.unit))
+                let delta = (monitor.showDelta ? monitor.formattedDelta(unit: monitor.unit) : nil).map { " \($0)" } ?? ""
+                Text(reading.menuBarLabel(unit: monitor.unit) + delta)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
             }
         } else if monitor.state == .loading {

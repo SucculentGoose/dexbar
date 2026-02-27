@@ -126,7 +126,11 @@ struct MenuBarView: View {
         guard let reading = monitor.currentReading else {
             return monitor.state.statusText
         }
-        return "\(reading.trend.description) · \(monitor.unit.rawValue)"
+        var parts = [reading.trend.description, monitor.unit.rawValue]
+        if monitor.showDelta, let delta = monitor.formattedDelta(unit: monitor.unit) {
+            parts.insert(delta, at: 1)
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var readingColor: Color {
