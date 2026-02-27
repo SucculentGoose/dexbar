@@ -11,7 +11,7 @@ struct DexBarApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environment(monitor)
-                .environment(sparkle.updater)
+                .environmentObject(sparkle)
         } label: {
             MenuBarLabel()
                 .environment(monitor)
@@ -21,13 +21,13 @@ struct DexBarApp: App {
         Settings {
             SettingsView()
                 .environment(monitor)
-                .environment(sparkle.updater)
+                .environmentObject(sparkle)
         }
     }
 }
 
 /// Holds the Sparkle updater controller for the lifetime of the app.
-final class SparkleController {
+final class SparkleController: ObservableObject {
     let controller: SPUStandardUpdaterController
     var updater: SPUUpdater { controller.updater }
 

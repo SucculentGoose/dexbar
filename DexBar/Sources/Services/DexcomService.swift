@@ -50,9 +50,9 @@ actor DexcomService {
         self.sessionID = session
     }
 
-    func getLatestReadings() async throws -> [GlucoseReading] {
+    func getLatestReadings(maxCount: Int = 2) async throws -> [GlucoseReading] {
         guard let session = sessionID else { throw DexcomError.sessionExpired }
-        return try await fetchReadings(sessionID: session)
+        return try await fetchReadings(sessionID: session, maxCount: maxCount)
     }
 
     func clearSession() {
@@ -98,12 +98,12 @@ actor DexcomService {
         return sessionID
     }
 
-    private func fetchReadings(sessionID: String) async throws -> [GlucoseReading] {
+    private func fetchReadings(sessionID: String, maxCount: Int = 2) async throws -> [GlucoseReading] {
         var components = URLComponents(string: "\(region.baseURL)/Publisher/ReadPublisherLatestGlucoseValues")!
         components.queryItems = [
             URLQueryItem(name: "sessionId", value: sessionID),
             URLQueryItem(name: "minutes", value: "1440"),
-            URLQueryItem(name: "maxCount", value: "2"),
+            URLQueryItem(name: "maxCount", value: "\(maxCount)"),
         ]
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"

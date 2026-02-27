@@ -14,6 +14,7 @@
 		7E626A6DE41DA4C733E4083C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */; };
 		87E1786F0C695A858E1F0D9E /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C508DE716AFAE5E886CD05 /* KeychainService.swift */; };
 		8A7A2BB99EF2AB023B3F13CD /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */; };
+		903C3C1CA07FE954674BA6E2 /* GlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C4EDC050A8C0C3EC847C9A /* GlucoseChartView.swift */; };
 		AA0153C8DA7F13EE9D7731EA /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A8EA3DEBC5E2873BE370D8 /* NotificationManager.swift */; };
 		AA5D72FB1385E32A5D965DFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB6B960D0988B55727105E1A /* Assets.xcassets */; };
 		B17310E55FAF1244EDD7ED9E /* DexBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */; };
@@ -38,6 +39,7 @@
 		5DB82C51AEECA006305C528B /* DexBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DexBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		686A747229A9DE5C7E28DFC7 /* DexBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DexBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		A5C4EDC050A8C0C3EC847C9A /* GlucoseChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseChartView.swift; sourceTree = "<group>"; };
 		BB6B960D0988B55727105E1A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C2C508DE716AFAE5E886CD05 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		DC14822FF8F6CDAE4DF7F645 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A5C4EDC050A8C0C3EC847C9A /* GlucoseChartView.swift */,
 				90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */,
 				BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */,
 			);
@@ -246,6 +249,7 @@
 			files = (
 				203C1F97C596E3B9E65C4DEA /* DexBarApp.swift in Sources */,
 				6EB78758C4ADB1438C1D7AF1 /* DexcomService.swift in Sources */,
+				903C3C1CA07FE954674BA6E2 /* GlucoseChartView.swift in Sources */,
 				C900FB2031954BC5C53D0225 /* GlucoseMonitor.swift in Sources */,
 				54576C40F3C9FD96C8841522 /* GlucoseReading.swift in Sources */,
 				87E1786F0C695A858E1F0D9E /* KeychainService.swift in Sources */,

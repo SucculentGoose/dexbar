@@ -1,9 +1,8 @@
 import SwiftUI
-import Sparkle
 
 struct MenuBarView: View {
     @Environment(GlucoseMonitor.self) private var monitor
-    @Environment(SPUUpdater.self) private var updater
+    @EnvironmentObject private var sparkle: SparkleController
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -11,15 +10,13 @@ struct MenuBarView: View {
             // Current reading header
             currentReadingSection
             Divider()
-            // Recent history
-            if monitor.recentReadings.count > 1 {
-                recentReadingsSection
-                Divider()
-            }
+            // Chart
+            chartSection
+            Divider()
             // Actions
             actionsSection
         }
-        .frame(minWidth: 240)
+        .frame(minWidth: 300)
         .padding(.vertical, 4)
     }
 
@@ -54,30 +51,10 @@ struct MenuBarView: View {
         .padding(.vertical, 12)
     }
 
-    private var recentReadingsSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Recent")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-            ForEach(monitor.recentReadings.dropFirst()) { reading in
-                HStack {
-                    Text(reading.displayValue(unit: monitor.unit))
-                        .font(.system(.body, design: .rounded))
-                        .monospacedDigit()
-                    Text(reading.trend.arrow)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(reading.date, style: .time)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-            }
-        }
-        .padding(.bottom, 6)
+    private var chartSection: some View {
+        GlucoseChartView()
+            .environment(monitor)
+            .padding(.vertical, 8)
     }
 
     private var actionsSection: some View {
@@ -94,12 +71,12 @@ struct MenuBarView: View {
             Divider()
 
             Button {
-                updater.checkForUpdates()
+                sparkle.updater.checkForUpdates()
             } label: {
                 Label("Check for Updates…", systemImage: "arrow.down.circle")
             }
             .buttonStyle(.plain)
-            .disabled(!updater.canCheckForUpdates)
+            .disabled(!sparkle.updater.canCheckForUpdates)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
 

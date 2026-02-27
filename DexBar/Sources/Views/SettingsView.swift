@@ -1,9 +1,8 @@
 import SwiftUI
-import Sparkle
 
 struct SettingsView: View {
     @Environment(GlucoseMonitor.self) private var monitor
-    @Environment(SPUUpdater.self) private var updater
+    @EnvironmentObject private var sparkle: SparkleController
 
     // Account
     @AppStorage("dexcomUsername") private var username = ""
@@ -276,19 +275,19 @@ struct SettingsView: View {
         Form {
             Section("Automatic Updates") {
                 Toggle("Automatically check for updates", isOn: Binding(
-                    get: { updater.automaticallyChecksForUpdates },
-                    set: { updater.automaticallyChecksForUpdates = $0 }
+                    get: { sparkle.updater.automaticallyChecksForUpdates },
+                    set: { sparkle.updater.automaticallyChecksForUpdates = $0 }
                 ))
                 Toggle("Automatically download updates", isOn: Binding(
-                    get: { updater.automaticallyDownloadsUpdates },
-                    set: { updater.automaticallyDownloadsUpdates = $0 }
+                    get: { sparkle.updater.automaticallyDownloadsUpdates },
+                    set: { sparkle.updater.automaticallyDownloadsUpdates = $0 }
                 ))
             }
             Section {
                 Button("Check for Updates Now") {
-                    updater.checkForUpdates()
+                    sparkle.updater.checkForUpdates()
                 }
-                .disabled(!updater.canCheckForUpdates)
+                .disabled(!sparkle.updater.canCheckForUpdates)
             }
         }
         .formStyle(.grouped)

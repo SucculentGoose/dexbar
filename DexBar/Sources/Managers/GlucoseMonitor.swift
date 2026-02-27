@@ -2,6 +2,22 @@ import Foundation
 import Observation
 import SwiftUI
 
+enum TimeRange: String, CaseIterable {
+    case threeHours  = "3h"
+    case sixHours    = "6h"
+    case twelveHours = "12h"
+    case day         = "24h"
+
+    var interval: TimeInterval {
+        switch self {
+        case .threeHours:  3  * 3600
+        case .sixHours:    6  * 3600
+        case .twelveHours: 12 * 3600
+        case .day:         24 * 3600
+        }
+    }
+}
+
 enum MonitorState: Equatable {
     case idle
     case loading
@@ -23,9 +39,15 @@ enum MonitorState: Equatable {
 final class GlucoseMonitor {
     // Current state
     var currentReading: GlucoseReading?
-    var recentReadings: [GlucoseReading] = []
+    var recentReadings: [GlucoseReading] = []   // newest first, up to 288
+    var selectedTimeRange: TimeRange = .threeHours
     var state: MonitorState = .idle
     var lastUpdated: Date?
+
+    var chartReadings: [GlucoseReading] {
+        let cutoff = Date().addingTimeInterval(-selectedTimeRange.interval)
+        return recentReadings.filter { $0.date >= cutoff }
+    }
 
     // Settings (persisted via AppStorage in SettingsView; mirrored here)
     var unit: GlucoseUnit = .mgdL
@@ -102,7 +124,7 @@ final class GlucoseMonitor {
             state = .error(error.localizedDescription)
             return
         }
-        await refresh()
+        await refresh(initialLoad: true)
         // Timer is scheduled inside refresh() once the first reading is obtained
     }
 
@@ -115,7 +137,7 @@ final class GlucoseMonitor {
     }
 
     func refreshNow() async {
-        await refresh()
+        await refresh(initialLoad: false)
     }
 
     func updateRefreshInterval(_ interval: TimeInterval) {
@@ -149,16 +171,19 @@ final class GlucoseMonitor {
         RunLoop.main.add(timer!, forMode: .common)
     }
 
-    private func refresh() async {
+    private func refresh(initialLoad: Bool = false) async {
         guard let service else { return }
         state = .loading
+        let maxCount = initialLoad ? 288 : 2
         do {
-            let readings = try await service.getLatestReadings()
-            let reading = readings[0]
+            let newReadings = try await service.getLatestReadings(maxCount: maxCount)
+            let reading = newReadings[0]
             currentReading = reading
-            // Merge new readings into history (newest first), cap at 5
-            let merged = (readings + recentReadings).sorted { $0.date > $1.date }
-            recentReadings = Array(merged.prefix(5))
+            // Merge new readings into history deduplicating by date, cap at 288
+            let existingDates = Set(recentReadings.map { $0.date })
+            let toAdd = newReadings.filter { !existingDates.contains($0.date) }
+            let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
+            recentReadings = Array(merged.prefix(288))
             lastUpdated = Date()
             state = .connected
             await evaluateAlerts(reading: reading)
