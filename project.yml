@@ -45,3 +45,16 @@ targets:
         INFOPLIST_FILE: DexBar/Info.plist
         CODE_SIGN_ENTITLEMENTS: DexBar/DexBar.entitlements
         CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
+
+  DexBarTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: DexBarTests
+    dependencies:
+      - target: DexBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dexbar.app.tests
+        GENERATE_INFOPLIST_FILE: YES

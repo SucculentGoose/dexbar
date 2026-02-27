@@ -15,14 +15,27 @@
 		8A7A2BB99EF2AB023B3F13CD /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */; };
 		AA0153C8DA7F13EE9D7731EA /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A8EA3DEBC5E2873BE370D8 /* NotificationManager.swift */; };
 		AA5D72FB1385E32A5D965DFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB6B960D0988B55727105E1A /* Assets.xcassets */; };
+		B17310E55FAF1244EDD7ED9E /* DexBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */; };
 		C900FB2031954BC5C53D0225 /* GlucoseMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1634C1004F2B8A58F80A88BE /* GlucoseMonitor.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		2D87D9F3231F362EB24FD40E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 18AC7C0FD25C2C705E63E54C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 498EF6FCC0F554C6C24525F9;
+			remoteInfo = DexBar;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		1634C1004F2B8A58F80A88BE /* GlucoseMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseMonitor.swift; sourceTree = "<group>"; };
+		1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexBarTests.swift; sourceTree = "<group>"; };
 		59A8EA3DEBC5E2873BE370D8 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		5B4FD6003D8EE6421750AC4F /* DexcomService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexcomService.swift; sourceTree = "<group>"; };
 		5DB82C51AEECA006305C528B /* DexBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DexBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		686A747229A9DE5C7E28DFC7 /* DexBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DexBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		BB6B960D0988B55727105E1A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -36,6 +49,7 @@
 			isa = PBXGroup;
 			children = (
 				25FF2AA49FB78B9A5A78DD61 /* DexBar */,
+				2F641FB1A8C200B6199EEDD4 /* DexBarTests */,
 				BB04B4D4991B0D977F567168 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -55,6 +69,14 @@
 				C76143987BADBB79390FD28A /* GlucoseReading.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		2F641FB1A8C200B6199EEDD4 /* DexBarTests */ = {
+			isa = PBXGroup;
+			children = (
+				1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */,
+			);
+			path = DexBarTests;
 			sourceTree = "<group>";
 		};
 		36B75EAEE9A7577C79D37C4B /* Managers */ = {
@@ -91,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				5DB82C51AEECA006305C528B /* DexBar.app */,
+				686A747229A9DE5C7E28DFC7 /* DexBarTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -125,6 +148,24 @@
 			productReference = 5DB82C51AEECA006305C528B /* DexBar.app */;
 			productType = "com.apple.product-type.application";
 		};
+		9911D579945898981A8ADA68 /* DexBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 07588CC7F7254C93B5888A5D /* Build configuration list for PBXNativeTarget "DexBarTests" */;
+			buildPhases = (
+				2CC98FCF4D9EC2D144F54EF2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6C87E1725A4EF65C745C3948 /* PBXTargetDependency */,
+			);
+			name = DexBarTests;
+			packageProductDependencies = (
+			);
+			productName = DexBarTests;
+			productReference = 686A747229A9DE5C7E28DFC7 /* DexBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -135,6 +176,9 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					498EF6FCC0F554C6C24525F9 = {
+						ProvisioningStyle = Automatic;
+					};
+					9911D579945898981A8ADA68 = {
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -154,6 +198,7 @@
 			projectRoot = "";
 			targets = (
 				498EF6FCC0F554C6C24525F9 /* DexBar */,
+				9911D579945898981A8ADA68 /* DexBarTests */,
 			);
 		};
 /* End PBXProject section */
@@ -170,6 +215,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2CC98FCF4D9EC2D144F54EF2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B17310E55FAF1244EDD7ED9E /* DexBarTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4F0B28C087F0CFAF67BF1485 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -187,7 +240,33 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		6C87E1725A4EF65C745C3948 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 498EF6FCC0F554C6C24525F9 /* DexBar */;
+			targetProxy = 2D87D9F3231F362EB24FD40E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		2D319248749479CDE10F3201 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dexbar.app.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DexBar.app/Contents/MacOS/DexBar";
+			};
+			name = Debug;
+		};
 		3E5462E5030EB4F4E7F07576 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -282,6 +361,24 @@
 			};
 			name = Release;
 		};
+		C9A6FE038F582F2096DC8CFB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dexbar.app.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DexBar.app/Contents/MacOS/DexBar";
+			};
+			name = Release;
+		};
 		D4DA67463F8029E03FDECD29 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -350,6 +447,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		07588CC7F7254C93B5888A5D /* Build configuration list for PBXNativeTarget "DexBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2D319248749479CDE10F3201 /* Debug */,
+				C9A6FE038F582F2096DC8CFB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		2D6CEBF3AE547CB2C9B7859D /* Build configuration list for PBXNativeTarget "DexBar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
