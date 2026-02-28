@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - main
 
 jobs:
   build:
@@ -15,6 +15,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version
+        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -47,66 +50,76 @@ jobs:
       - name: Create .zip
         run: |
           cd build/export
-          zip -r ../../DexBar-${{ github.ref_name }}.zip DexBar.app
+          zip -r ../../DexBar-v${{ env.APP_VERSION }}.zip DexBar.app
 
       - name: Sign update with Sparkle
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           SIGN_UPDATE=/opt/homebrew/Caskroom/sparkle/*/bin/sign_update
-          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | $SIGN_UPDATE DexBar-${{ github.ref_name }}.zip -)
+          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | $SIGN_UPDATE DexBar-v${{ env.APP_VERSION }}.zip -)
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
-          echo "ZIP_SIZE=$(wc -c < DexBar-${{ github.ref_name }}.zip | tr -d ' ')" >> $GITHUB_ENV
+          echo "ZIP_SIZE=$(wc -c < DexBar-v${{ env.APP_VERSION }}.zip | tr -d ' ')" >> $GITHUB_ENV
 
       - name: Update appcast.xml
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          SPARKLE_SIGNATURE: ${{ env.SPARKLE_SIGNATURE }}
+          ZIP_SIZE: ${{ env.ZIP_SIZE }}
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"  # strip leading 'v'
-          DOWNLOAD_URL="https://github.com/SucculentGoose/dexbar/releases/download/${{ github.ref_name }}/DexBar-${{ github.ref_name }}.zip"
-          PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
+          python3 - <<'EOF'
+          import os
 
-          NEW_ITEM="        <item>
-            <title>DexBar ${VERSION}</title>
-            <pubDate>${PUB_DATE}</pubDate>
-            <sparkle:version>${VERSION}</sparkle:version>
-            <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure
-                url=\"${DOWNLOAD_URL}\"
-                length=\"${{ env.ZIP_SIZE }}\"
-                type=\"application/octet-stream\"
-                sparkle:edSignature=\"${{ env.SPARKLE_SIGNATURE }}\"
-            />
-        </item>"
+          version   = os.environ["APP_VERSION"]
+          signature = os.environ["SPARKLE_SIGNATURE"]
+          zip_size  = os.environ["ZIP_SIZE"]
+          from datetime import datetime, timezone
+          pub_date  = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+          dl_url    = f"https://github.com/SucculentGoose/dexbar/releases/download/v{version}/DexBar-v{version}.zip"
 
-          # Insert new item after the last comment line in the channel
-          python3 - <<EOF
-          import re, sys
-          with open('appcast.xml', 'r') as f:
+          item = (
+              "        <item>\n"
+              f"            <title>DexBar {version}</title>\n"
+              f"            <pubDate>{pub_date}</pubDate>\n"
+              f"            <sparkle:version>{version}</sparkle:version>\n"
+              f"            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>\n"
+              "            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>\n"
+              "            <enclosure\n"
+              f'                url="{dl_url}"\n'
+              f'                length="{zip_size}"\n'
+              '                type="application/octet-stream"\n'
+              f'                sparkle:edSignature="{signature}"\n'
+              "            />\n"
+              "        </item>"
+          )
+
+          placeholder = "        <!-- Releases are added here automatically by the GitHub Actions release workflow -->"
+          with open("appcast.xml", "r") as f:
               content = f.read()
-          item = """${NEW_ITEM}"""
-          content = content.replace('        <!-- Releases are added here automatically by the GitHub Actions release workflow -->', item + '\n        <!-- Releases are added here automatically by the GitHub Actions release workflow -->')
-          with open('appcast.xml', 'w') as f:
+          content = content.replace(placeholder, item + "\n" + placeholder)
+          with open("appcast.xml", "w") as f:
               f.write(content)
           EOF
 
-      - name: Commit updated appcast.xml
+      - name: Tag and commit updated appcast.xml
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
-          git commit -m "chore: update appcast for ${{ github.ref_name }}"
-          git push origin HEAD:main
+          git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
+          git tag "v${{ env.APP_VERSION }}"
+          git push origin HEAD:main --tags
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: DexBar ${{ github.ref_name }}
+          tag_name: v${{ env.APP_VERSION }}
+          name: DexBar v${{ env.APP_VERSION }}
           body: |
-            ## DexBar ${{ github.ref_name }}
+            ## DexBar v${{ env.APP_VERSION }}
 
             ### Installation
-            1. Download **DexBar-${{ github.ref_name }}.zip** below
+            1. Download **DexBar-v${{ env.APP_VERSION }}.zip** below
             2. Unzip and drag **DexBar.app** to your `/Applications` folder
             3. Right-click → **Open** the first time to bypass Gatekeeper (required for unsigned apps)
             4. Click the icon in your menu bar → **Settings** → enter your Dexcom credentials
@@ -115,5 +128,5 @@ jobs:
             Once installed, DexBar will automatically check for updates. You can also check manually via **Settings → Updates**.
 
             > This build is unsigned. macOS will warn you on first launch — right-click → Open to proceed.
-          files: DexBar-${{ github.ref_name }}.zip
+          files: DexBar-v${{ env.APP_VERSION }}.zip
 
