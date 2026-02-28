@@ -54,7 +54,7 @@ struct GlucoseTrendTests {
 
 struct GlucoseReadingTests {
     private func reading(value: Int, trend: GlucoseTrend = .flat) -> GlucoseReading {
-        GlucoseReading(value: value, trend: trend, date: Date())
+        GlucoseReading(value: value, trend: trend, date: Date(), trendRate: nil)
     }
 
     @Test func mmolConversion() {
@@ -148,7 +148,7 @@ struct GlucoseMonitorColorTests {
         let m = GlucoseMonitor()
         m.alertLowThresholdMgdL = 70
         m.alertHighThresholdMgdL = 180
-        m.currentReading = GlucoseReading(value: value, trend: .flat, date: Date())
+        m.currentReading = GlucoseReading(value: value, trend: .flat, date: Date(), trendRate: nil)
         return m
     }
 
