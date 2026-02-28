@@ -24,9 +24,9 @@ jobs:
 
       - name: Install Sparkle tools
         run: |
-          curl -sSL https://github.com/sparkle-project/Sparkle/releases/download/2.6.0/Sparkle-2.6.0.tar.bz2 -o sparkle.tar.bz2
+          curl -sSL https://github.com/sparkle-project/Sparkle/releases/download/2.9.0/Sparkle-2.9.0.tar.xz -o sparkle.tar.xz
           mkdir -p sparkle_tools
-          tar -xjf sparkle.tar.bz2 -C sparkle_tools
+          tar -xJf sparkle.tar.xz -C sparkle_tools
           chmod +x sparkle_tools/bin/sign_update
           echo "SIGN_UPDATE=$(pwd)/sparkle_tools/bin/sign_update" >> $GITHUB_ENV
 
