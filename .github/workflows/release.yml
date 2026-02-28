@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build & Package
     runs-on: macos-15
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -66,8 +68,12 @@ jobs:
           KEY_FILE=$(mktemp)
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
 
-          SIGNATURE=$("$SIGN_UPDATE" "DexBar-v${{ env.APP_VERSION }}.zip" --ed-key-file "$KEY_FILE")
+          SIGN_OUTPUT=$("$SIGN_UPDATE" "DexBar-v${{ env.APP_VERSION }}.zip" --ed-key-file "$KEY_FILE")
           rm -f "$KEY_FILE"
+
+          # sign_update outputs: sparkle:edSignature="<base64>" length="<bytes>"
+          # Extract just the base64 signature value
+          SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
 
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
           echo "ZIP_SIZE=$(wc -c < "DexBar-v${{ env.APP_VERSION }}.zip" | tr -d ' ')" >> $GITHUB_ENV
