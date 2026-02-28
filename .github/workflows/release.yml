@@ -59,9 +59,13 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | ${{ env.SIGN_UPDATE }} DexBar-v${{ env.APP_VERSION }}.zip -)
+          SIGN_UPDATE="${{ env.SIGN_UPDATE }}"
+          # Clear quarantine flag so Gatekeeper doesn't block the binary
+          xattr -d com.apple.quarantine "$SIGN_UPDATE" 2>/dev/null || true
+          # Use printf to avoid echo adding a trailing newline to the key
+          SIGNATURE=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" "DexBar-v${{ env.APP_VERSION }}.zip" -)
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
-          echo "ZIP_SIZE=$(wc -c < DexBar-v${{ env.APP_VERSION }}.zip | tr -d ' ')" >> $GITHUB_ENV
+          echo "ZIP_SIZE=$(wc -c < "DexBar-v${{ env.APP_VERSION }}.zip" | tr -d ' ')" >> $GITHUB_ENV
 
       - name: Update appcast.xml
         env:
