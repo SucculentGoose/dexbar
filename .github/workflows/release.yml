@@ -60,11 +60,21 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           SIGN_UPDATE="${{ env.SIGN_UPDATE }}"
-          # Clear quarantine flag so Gatekeeper doesn't block the binary
           xattr -d com.apple.quarantine "$SIGN_UPDATE" 2>/dev/null || true
-          # Use printf to avoid echo adding a trailing newline to the key
-          SIGNATURE=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" "DexBar-v${{ env.APP_VERSION }}.zip" -)
-          echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
+
+          # Verify the zip exists
+          ls -lh "DexBar-v${{ env.APP_VERSION }}.zip"
+
+          # Run sign_update capturing both stdout and stderr to surface errors
+          set +e
+          SIGN_OUTPUT=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" "DexBar-v${{ env.APP_VERSION }}.zip" - 2>&1)
+          SIGN_EXIT=$?
+          set -e
+          echo "sign_update exit code: $SIGN_EXIT"
+          echo "sign_update output: $SIGN_OUTPUT"
+          if [ $SIGN_EXIT -ne 0 ]; then exit $SIGN_EXIT; fi
+
+          echo "SPARKLE_SIGNATURE=$SIGN_OUTPUT" >> $GITHUB_ENV
           echo "ZIP_SIZE=$(wc -c < "DexBar-v${{ env.APP_VERSION }}.zip" | tr -d ' ')" >> $GITHUB_ENV
 
       - name: Update appcast.xml
