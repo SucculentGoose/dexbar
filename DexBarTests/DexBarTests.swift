@@ -146,33 +146,38 @@ struct DexcomRawReadingTests {
 struct GlucoseMonitorColorTests {
     private func monitor(value: Int) -> GlucoseMonitor {
         let m = GlucoseMonitor()
+        m.alertUrgentLowThresholdMgdL = 55
         m.alertLowThresholdMgdL = 70
         m.alertHighThresholdMgdL = 180
+        m.alertUrgentHighThresholdMgdL = 250
+        // Assign distinct sentinel colors so each zone is unambiguous
+        m.colorUrgentLow = .purple
+        m.colorLow = .orange
+        m.colorInRange = .green
+        m.colorHigh = .yellow
+        m.colorUrgentHigh = .red
         m.currentReading = GlucoseReading(value: value, trend: .flat, date: Date(), trendRate: nil)
         return m
     }
 
-    @Test func greenWhenInRange() {
-        // 90–160 is safely inside both 20-point warning margins
-        #expect(monitor(value: 120).readingColor == Color.green)
+    @Test func urgentLowColor() {
+        #expect(monitor(value: 54).readingColor == .purple)
     }
 
-    @Test func redWhenAboveHighThreshold() {
-        #expect(monitor(value: 181).readingColor == Color.red)
+    @Test func lowColor() {
+        #expect(monitor(value: 60).readingColor == .orange)
     }
 
-    @Test func redWhenBelowLowThreshold() {
-        #expect(monitor(value: 69).readingColor == Color.red)
+    @Test func inRangeColor() {
+        #expect(monitor(value: 120).readingColor == .green)
     }
 
-    @Test func yellowWhenApproachingHigh() {
-        // 160 < value <= 180 → warning zone
-        #expect(monitor(value: 170).readingColor == Color.yellow)
+    @Test func highColor() {
+        #expect(monitor(value: 181).readingColor == .yellow)
     }
 
-    @Test func yellowWhenApproachingLow() {
-        // 70 <= value < 90 → warning zone
-        #expect(monitor(value: 75).readingColor == Color.yellow)
+    @Test func urgentHighColor() {
+        #expect(monitor(value: 251).readingColor == .red)
     }
 
     @Test func primaryWhenNoReading() {
