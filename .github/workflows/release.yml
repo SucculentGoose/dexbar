@@ -24,8 +24,11 @@ jobs:
 
       - name: Install Sparkle tools
         run: |
-          brew install --cask sparkle
-          xattr -dr com.apple.quarantine /opt/homebrew/Caskroom/sparkle/*/bin/sign_update
+          curl -sSL https://github.com/sparkle-project/Sparkle/releases/download/2.6.0/Sparkle-2.6.0.tar.bz2 -o sparkle.tar.bz2
+          mkdir -p sparkle_tools
+          tar -xjf sparkle.tar.bz2 -C sparkle_tools
+          chmod +x sparkle_tools/bin/sign_update
+          echo "SIGN_UPDATE=$(pwd)/sparkle_tools/bin/sign_update" >> $GITHUB_ENV
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -56,8 +59,7 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          SIGN_UPDATE=/opt/homebrew/Caskroom/sparkle/*/bin/sign_update
-          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | $SIGN_UPDATE DexBar-v${{ env.APP_VERSION }}.zip -)
+          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | ${{ env.SIGN_UPDATE }} DexBar-v${{ env.APP_VERSION }}.zip -)
           echo "SPARKLE_SIGNATURE=$SIGNATURE" >> $GITHUB_ENV
           echo "ZIP_SIZE=$(wc -c < DexBar-v${{ env.APP_VERSION }}.zip | tr -d ' ')" >> $GITHUB_ENV
 
