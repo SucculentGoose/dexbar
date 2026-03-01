@@ -5,6 +5,15 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-01
+
+### Added
+- Launch at login setting (Settings → Display → General)
+- Test notification buttons for each alert type (Settings → Alerts → Test Notifications)
+
+### Fixed
+- Notifications were never firing — notification permission was not being requested at app launch
+
 ## [1.1.0] - 2026-03-01
 
 ### Added

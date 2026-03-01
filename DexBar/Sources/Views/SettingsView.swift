@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @Environment(GlucoseMonitor.self) private var monitor
@@ -14,6 +15,7 @@ struct SettingsView: View {
     // Display
     @AppStorage("glucoseUnit") private var unitRaw = GlucoseUnit.mgdL.rawValue
     @AppStorage("refreshIntervalMinutes") private var refreshMinutes = 5.0
+    @State private var launchAtLogin = (SMAppService.mainApp.status == .enabled)
 
     // Alerts
     @AppStorage("alertUrgentHighEnabled") private var alertUrgentHigh = true
@@ -93,6 +95,20 @@ struct SettingsView: View {
     private var displayTab: some View {
         @Bindable var monitor = monitor
         return Form {
+            Section("General") {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in
+                        do {
+                            if enabled {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                        } catch {
+                            launchAtLogin = !enabled // revert if it fails
+                        }
+                    }
+            }
             Section("Menu Bar") {
                 Toggle("Color-coded indicator dot", isOn: $monitor.coloredMenuBar)
                 Text("Shows a colored dot next to the reading based on your threshold zones.")
@@ -196,6 +212,21 @@ struct SettingsView: View {
                 Toggle("Alert when no new readings for 20 min", isOn: $alertStaleData)
                     .onChange(of: alertStaleData) { _, v in monitor.alertStaleDataEnabled = v }
             }
+            Section {
+                Text("Fires a test notification immediately, bypassing cooldowns.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    testButton("Urgent High", type: .urgentHigh, title: "Urgent High", body: "Blood sugar is urgently high.")
+                    testButton("High",         type: .high,        title: "High",         body: "Blood sugar is high.")
+                    testButton("Low",          type: .low,         title: "Low",          body: "Blood sugar is low.")
+                    testButton("Urgent Low",   type: .urgentLow,   title: "Urgent Low",   body: "Blood sugar is urgently low.")
+                    testButton("Rising Fast",  type: .risingFast,  title: "Rising Fast",  body: "Blood sugar is rising quickly ↑↑")
+                    testButton("Dropping Fast",type: .droppingFast,title: "Dropping Fast",body: "Blood sugar is dropping quickly ↓↓")
+                }
+            } header: {
+                Text("Test Notifications")
+            }
         }
         .formStyle(.grouped)
     }
@@ -245,6 +276,18 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    private func testButton(_ label: String, type: NotificationManager.AlertType, title: String, body: String) -> some View {
+        Button(label) {
+            Task {
+                await NotificationManager.shared.resetCooldowns()
+                await NotificationManager.shared.send(type: type, title: title, body: body)
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(maxWidth: .infinity)
+    }
 
     private func thresholdSlider(
         value: Binding<Double>,
