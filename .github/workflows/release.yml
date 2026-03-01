@@ -127,23 +127,32 @@ jobs:
           git tag "v${{ env.APP_VERSION }}"
           git push origin HEAD:main --tags
 
+      - name: Extract release notes from CHANGELOG
+        run: |
+          python3 - <<'EOF'
+          import re
+          with open("CHANGELOG.md") as f:
+              content = f.read()
+          # Find the first version section and extract until the next one
+          match = re.search(r'(## \[\d+\.\d+\.\d+\].*?)(?=\n## \[|\Z)', content, re.DOTALL)
+          notes = match.group(1).strip() if match else "See CHANGELOG.md for details."
+          footer = """
+          ---
+          ### Installation
+          1. Download **DexBar-v{version}.zip** below and unzip it
+          2. Drag **DexBar.app** to your `/Applications` folder
+          3. **First launch:** run `xattr -cr /Applications/DexBar.app` in Terminal if macOS blocks it
+          4. Click the menu bar icon → **Settings** → enter your Dexcom credentials
+          """.format(version=open("VERSION").read().strip())
+          with open("release_notes.md", "w") as f:
+              f.write(notes + "\n" + footer)
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.APP_VERSION }}
           name: DexBar v${{ env.APP_VERSION }}
-          body: |
-            ## DexBar v${{ env.APP_VERSION }}
-
-            ### Installation
-            1. Download **DexBar-v${{ env.APP_VERSION }}.zip** below
-            2. Unzip and drag **DexBar.app** to your `/Applications` folder
-            3. Right-click → **Open** the first time to bypass Gatekeeper (required for unsigned apps)
-            4. Click the icon in your menu bar → **Settings** → enter your Dexcom credentials
-
-            ### Updates
-            Once installed, DexBar will automatically check for updates. You can also check manually via **Settings → Updates**.
-
-            > This build is unsigned. macOS will warn you on first launch — right-click → Open to proceed.
+          body_path: release_notes.md
           files: DexBar-v${{ env.APP_VERSION }}.zip
 

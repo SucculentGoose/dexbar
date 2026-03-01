@@ -32,10 +32,26 @@ A native macOS menu bar app that displays real-time blood glucose readings from 
 
 ### Download (easiest)
 
+**One-line install** — paste this in Terminal. No quarantine warnings, no Gatekeeper prompts:
+
+```bash
+curl -sL https://raw.githubusercontent.com/SucculentGoose/dexbar/main/install.sh | bash
+```
+
+The script downloads the latest release directly via `curl` (bypassing macOS quarantine), installs to `/Applications`, and launches the app.
+
+<details>
+<summary>Manual install instead</summary>
+
 1. Go to the [Releases](../../releases) page and download the latest `DexBar-vX.X.X.zip`
 2. Unzip and drag **DexBar.app** to your `/Applications` folder
-3. **Right-click → Open** the first time — macOS will warn about an unidentified developer since the app is unsigned; clicking Open bypasses this once
-4. Click the menu bar icon → **Settings…** → enter your Dexcom credentials and click **Connect**
+3. **Bypass Gatekeeper:** Because DexBar is not notarized, macOS will show a *"damaged and can't be opened"* warning. Run this once in Terminal:
+   ```bash
+   xattr -cr /Applications/DexBar.app
+   ```
+4. Open DexBar from `/Applications` normally
+
+</details>
 
 ### Build from source
 
