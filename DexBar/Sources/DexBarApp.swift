@@ -24,6 +24,10 @@ struct DexBarApp: App {
                 .environmentObject(sparkle)
         }
     }
+
+    init() {
+        Task { await NotificationManager.shared.requestPermission() }
+    }
 }
 
 /// Holds the Sparkle updater controller for the lifetime of the app.
