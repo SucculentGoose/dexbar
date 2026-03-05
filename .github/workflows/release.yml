@@ -54,6 +54,15 @@ jobs:
           mkdir -p build/export
           cp -R build/DexBar.xcarchive/Products/Applications/DexBar.app build/export/DexBar.app
 
+      - name: Sign app bundle (ad-hoc)
+        run: |
+          APP=build/export/DexBar.app
+          SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+          codesign --force --sign - "$SPARKLE/XPCServices/Installer.xpc"
+          codesign --force --sign - "$SPARKLE/XPCServices/Downloader.xpc"
+          codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
+          codesign --force --sign - "$APP"
+
       - name: Create .zip
         run: |
           cd build/export

@@ -52,9 +52,9 @@
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure
                 url="https://github.com/SucculentGoose/dexbar/releases/download/v1.3.0/DexBar-v1.3.0.zip"
-                length="4161206"
+                length="4162174"
                 type="application/octet-stream"
-                sparkle:edSignature="Kl25I41eEI64KX19L8sdDyaq6srNUr8822W+/iZcATgGLnfGYtmexukdhhcuyEpvk1Klt2ojo8o13qAg7P8uAA=="
+                sparkle:edSignature="h3M8HvboiOX1emeUwgAuuMxsvdd48rqloPZkiDUEM7knQS1iAeWcXPdXoiR67kaqL34Yr7idYNUSuVEWeehoCw=="
             />
         </item>
         <!-- Releases are added here automatically by the GitHub Actions release workflow -->
