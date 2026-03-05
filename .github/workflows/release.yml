@@ -34,6 +34,9 @@ jobs:
           chmod +x sparkle_tools/bin/sign_update
           echo "SIGN_UPDATE=$(pwd)/sparkle_tools/bin/sign_update" >> $GITHUB_ENV
 
+      - name: Set version in project.yml
+        run: sed -i '' "s/MARKETING_VERSION:.*/MARKETING_VERSION: \"${{ env.APP_VERSION }}\"/" project.yml
+
       - name: Generate Xcode project
         run: xcodegen generate
 
@@ -47,8 +50,7 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            MARKETING_VERSION=${{ env.APP_VERSION }}
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Export .app
         run: |
@@ -134,7 +136,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add appcast.xml
+          git add appcast.xml project.yml
           git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
           git tag "v${{ env.APP_VERSION }}"
           git push origin HEAD:main --tags
