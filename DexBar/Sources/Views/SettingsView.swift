@@ -51,6 +51,8 @@ struct SettingsView: View {
                 .tabItem { Label("Disclaimer", systemImage: "exclamationmark.triangle") }
             updatesTab
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
+            aboutTab
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 400)
         .padding(20)
@@ -351,6 +353,51 @@ struct SettingsView: View {
         default:
             connectionStatus = ""
         }
+    }
+
+    // MARK: - About Tab
+
+    private var aboutTab: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 96, height: 96)
+
+            VStack(spacing: 4) {
+                Text("DexBar")
+                    .font(.title2.bold())
+                Text("Version \(appVersion)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider().frame(width: 200)
+
+            Link(destination: URL(string: "https://github.com/SucculentGoose/dexbar")!) {
+                HStack(spacing: 8) {
+                    Image("GitHubMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 15, height: 15)
+                    Text("View on GitHub")
+                        .font(.subheadline)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.quaternary, in: Capsule())
+                .foregroundStyle(.primary)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
     // MARK: - Updates Tab
