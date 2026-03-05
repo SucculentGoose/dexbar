@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import SwiftUI
@@ -124,10 +125,19 @@ final class GlucoseMonitor {
     private var service: DexcomService?
     private var timer: Timer?
     var nextRefreshDate: Date?
+    private var isStarting = false
 
     init() {
         Task { @MainActor in
             await autoConnectIfNeeded()
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in await self.handleSystemWake() }
         }
     }
 
@@ -144,6 +154,9 @@ final class GlucoseMonitor {
     // MARK: - Lifecycle
 
     func start(username: String, password: String, region: DexcomRegion) async {
+        guard !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         service = DexcomService(region: region)
         state = .loading
         do {
@@ -218,14 +231,37 @@ final class GlucoseMonitor {
             await evaluateStaleAlert(reading: reading)
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired {
-            // Try re-authenticating
-            state = .error("Session expired — reconnect in Settings")
-            await service.clearSession()
-            scheduleTimer(after: currentReading?.date)
+            await reAuthenticateIfPossible()
+        } catch DexcomError.serverError(let code) where code == 429 {
+            state = .error("Rate limited by Dexcom — will retry soon")
+            scheduleTimer()
         } catch {
             state = .error(error.localizedDescription)
             scheduleTimer(after: currentReading?.date)
         }
+    }
+
+    private func handleSystemWake() async {
+        guard service != nil else {
+            await autoConnectIfNeeded()
+            return
+        }
+        await refresh()
+    }
+
+    private func reAuthenticateIfPossible() async {
+        let username = UserDefaults.standard.string(forKey: "dexcomUsername") ?? ""
+        let regionRaw = UserDefaults.standard.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
+        guard !username.isEmpty,
+              let password = try? KeychainService.load(key: "password"),
+              !password.isEmpty else {
+            state = .error("Session expired — reconnect in Settings")
+            if let svc = service { await svc.clearSession() }
+            scheduleTimer(after: currentReading?.date)
+            return
+        }
+        let region = DexcomRegion(rawValue: regionRaw) ?? .us
+        await start(username: username, password: password, region: region)
     }
 
     private func evaluateStaleAlert(reading: GlucoseReading) async {
