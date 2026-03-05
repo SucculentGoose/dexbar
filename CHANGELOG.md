@@ -5,6 +5,14 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-05
+
+### Fixed
+- Blood sugar reading no longer fails to update after waking the laptop — the app now refreshes immediately on system wake
+- Session expiry (e.g. after an overnight sleep) now silently re-authenticates using stored credentials instead of requiring a manual reconnect
+- Eliminated 429 rate-limit errors when clicking Connect by preventing concurrent authentication requests
+- 429 responses from Dexcom now trigger a full refresh-interval backoff instead of a rapid 30-second retry
+
 ## [1.2.0] - 2026-03-01
 
 ### Added
