@@ -33,7 +33,7 @@ targets:
         CFBundleName: DexBar
         CFBundleDisplayName: DexBar
         CFBundleIdentifier: com.dexbar.app
-        CFBundleVersion: "1"
+        CFBundleVersion: "$(MARKETING_VERSION)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         NSPrincipalClass: NSApplication
         LSUIElement: true
