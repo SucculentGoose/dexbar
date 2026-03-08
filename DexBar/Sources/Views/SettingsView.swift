@@ -48,10 +48,10 @@ struct SettingsView: View {
                 .tabItem { Label("Display", systemImage: "dial.low") }
             alertsTab
                 .tabItem { Label("Alerts", systemImage: "bell") }
-            disclaimerTab
-                .tabItem { Label("Disclaimer", systemImage: "exclamationmark.triangle") }
             updatesTab
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
+            disclaimerTab
+                .tabItem { Label("Disclaimer", systemImage: "exclamationmark.triangle") }
             aboutTab
                 .tabItem { Label("About", systemImage: "info.circle") }
         }

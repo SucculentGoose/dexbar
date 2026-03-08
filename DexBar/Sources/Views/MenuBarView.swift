@@ -77,51 +77,26 @@ struct MenuBarView: View {
         @Bindable var monitor = monitor
         let stats = monitor.tirStats
         return VStack(spacing: 6) {
-            HStack {
-                Text("Time in Range")
+            // Row 1: label + TiR%
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("Time in Range:")
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
-                Spacer()
-                Picker("Stats range", selection: $monitor.selectedStatsRange) {
-                    ForEach(StatsTimeRange.allCases, id: \.self) { r in
-                        Text(r.rawValue).tag(r)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(maxWidth: 180)
-            }
-            if let gmi = monitor.gmi {
-                let span = monitor.statsDataSpanDays
-                let insufficient = span < 14
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        HStack(spacing: 4) {
-                            Label(String(format: "GMI %.1f%%", gmi), systemImage: "waveform.path.ecg")
-                            if insufficient {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.yellow)
-                            }
-                        }
-                        .foregroundStyle(insufficient ? .secondary : .primary)
-                        Spacer()
-                        Text("\(stats.total) readings")
-                            .foregroundStyle(.tertiary)
-                    }
-                    if insufficient {
-                        Text(String(format: "Based on %.1fd of data — 14d+ recommended", span))
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .font(.caption2)
-            } else {
-                HStack {
-                    Spacer()
-                    Text("\(stats.total) readings")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                if stats.total > 0 {
+                    Text(String(format: "%.0f%%", stats.inRangePct))
+                        .font(.caption.bold())
+                        .foregroundStyle(monitor.colorInRange)
                 }
             }
+            // Row 2: range picker
+            Picker("Stats range", selection: $monitor.selectedStatsRange) {
+                ForEach(StatsTimeRange.allCases, id: \.self) { r in
+                    Text(r.rawValue).tag(r)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
             if stats.total > 0 {
                 // Stacked bar
                 GeometryReader { geo in
@@ -137,7 +112,7 @@ struct MenuBarView: View {
                 }
                 .frame(height: 8)
 
-                // Labels
+                // Low / In Range / High labels
                 HStack {
                     Label(String(format: "%.0f%%", stats.lowPct), systemImage: "arrow.down")
                         .foregroundStyle(monitor.colorLow)
@@ -153,6 +128,32 @@ struct MenuBarView: View {
                 Text("No readings in this period")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+            }
+
+            // GMI footnote
+            if let gmi = monitor.gmi, stats.total > 0 {
+                let span = monitor.statsDataSpanDays
+                let insufficient = span < 14
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack {
+                        HStack(spacing: 4) {
+                            Label(String(format: "GMI %.1f%%", gmi), systemImage: "waveform.path.ecg")
+                            if insufficient {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
+                        .foregroundStyle(insufficient ? .tertiary : .secondary)
+                        Spacer()
+                        Text("\(stats.total) readings")
+                            .foregroundStyle(.tertiary)
+                    }
+                    if insufficient {
+                        Text(String(format: "Based on %.1fd of data — 14d+ recommended", span))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.caption2)
             }
         }
         .padding(.horizontal, 16)

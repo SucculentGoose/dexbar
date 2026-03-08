@@ -5,6 +5,12 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-03-08
+
+### Changed
+- Time in Range panel redesigned: "Time in Range: XX%" now appears as a clear headline with the day-range picker on its own row below
+- Disclaimer tab moved to the end of Settings (after Updates, before About)
+
 ## [1.4.0] - 2026-03-08
 
 ### Added
