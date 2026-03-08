@@ -45,13 +45,32 @@ enum GlucoseTrend: Int, Codable, Sendable {
     var isDroppingFast: Bool { self == .doubleDown || self == .singleDown }
 }
 
-struct GlucoseReading: Identifiable, Sendable {
-    let id = UUID()
+struct GlucoseReading: Identifiable, Codable, Sendable {
+    let id: UUID
     let value: Int          // always stored as mg/dL
     let trend: GlucoseTrend
     let date: Date
     /// Rate of change in mg/dL per minute, as provided by the Dexcom API.
     let trendRate: Double?
+
+    init(value: Int, trend: GlucoseTrend, date: Date, trendRate: Double?) {
+        self.id = UUID()
+        self.value = value
+        self.trend = trend
+        self.date = date
+        self.trendRate = trendRate
+    }
+
+    // Exclude `id` from disk storage — regenerate on decode
+    enum CodingKeys: String, CodingKey { case value, trend, date, trendRate }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id        = UUID()
+        value     = try c.decode(Int.self,          forKey: .value)
+        trend     = try c.decode(GlucoseTrend.self, forKey: .trend)
+        date      = try c.decode(Date.self,          forKey: .date)
+        trendRate = try c.decodeIfPresent(Double.self, forKey: .trendRate)
+    }
 
     var mmolL: Double { Double(value) / 18.0 }
 

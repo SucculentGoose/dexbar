@@ -3,6 +3,31 @@ import Foundation
 import Observation
 import SwiftUI
 
+enum MenuBarStyle: String, CaseIterable {
+    case full      = "Value & Arrow"
+    case compact   = "Compact"
+    case valueOnly = "Value Only"
+    case arrowOnly = "Arrow Only"
+}
+
+enum StatsTimeRange: String, CaseIterable {
+    case twoDays     = "2d"
+    case sevenDays   = "7d"
+    case fourteenDays = "14d"
+    case thirtyDays  = "30d"
+    case ninetyDays  = "90d"
+
+    var interval: TimeInterval {
+        switch self {
+        case .twoDays:      2  * 86400
+        case .sevenDays:    7  * 86400
+        case .fourteenDays: 14 * 86400
+        case .thirtyDays:   30 * 86400
+        case .ninetyDays:   90 * 86400
+        }
+    }
+}
+
 enum TimeRange: String, CaseIterable {
     case threeHours  = "3h"
     case sixHours    = "6h"
@@ -35,19 +60,60 @@ enum MonitorState: Equatable {
     }
 }
 
+struct TiRStats {
+    let lowCount: Int
+    let inRangeCount: Int
+    let highCount: Int
+    let total: Int
+
+    var lowPct: Double    { total > 0 ? Double(lowCount)     / Double(total) * 100 : 0 }
+    var inRangePct: Double { total > 0 ? Double(inRangeCount) / Double(total) * 100 : 0 }
+    var highPct: Double   { total > 0 ? Double(highCount)    / Double(total) * 100 : 0 }
+}
+
 @MainActor
 @Observable
 final class GlucoseMonitor {
     // Current state
     var currentReading: GlucoseReading?
-    var recentReadings: [GlucoseReading] = []   // newest first, up to 288
+    var recentReadings: [GlucoseReading] = []   // newest first, up to 90 days
     var selectedTimeRange: TimeRange = .threeHours
+    var selectedStatsRange: StatsTimeRange = .sevenDays
     var state: MonitorState = .idle
     var lastUpdated: Date?
 
     var chartReadings: [GlucoseReading] {
         let cutoff = Date().addingTimeInterval(-selectedTimeRange.interval)
         return recentReadings.filter { $0.date >= cutoff }
+    }
+
+    private var statsReadings: [GlucoseReading] {
+        let cutoff = Date().addingTimeInterval(-selectedStatsRange.interval)
+        return recentReadings.filter { $0.date >= cutoff }
+    }
+
+    /// Actual days of data available for the selected stats range.
+    var statsDataSpanDays: Double {
+        guard let oldest = statsReadings.last?.date else { return 0 }
+        return Date().timeIntervalSince(oldest) / 86400
+    }
+
+    var tirStats: TiRStats {
+        let readings = statsReadings
+        let lowCutoff  = alertLowThresholdMgdL
+        let highCutoff = alertHighThresholdMgdL
+        let low  = readings.filter { Double($0.value) < lowCutoff  }.count
+        let high = readings.filter { Double($0.value) > highCutoff }.count
+        return TiRStats(lowCount: low, inRangeCount: readings.count - low - high, highCount: high, total: readings.count)
+    }
+
+    /// Glucose Management Indicator — estimated HbA1c % from mean glucose.
+    /// Formula: GMI = 3.31 + 0.02392 × mean_mg_dL
+    var gmi: Double? {
+        let readings = statsReadings
+        guard !readings.isEmpty else { return nil }
+        let mean = Double(readings.reduce(0) { $0 + $1.value }) / Double(readings.count)
+        return 3.31 + 0.02392 * mean
     }
 
     // Settings (persisted via AppStorage in SettingsView; mirrored here)
@@ -66,6 +132,9 @@ final class GlucoseMonitor {
     var alertRisingFastEnabled: Bool = true
     var alertDroppingFastEnabled: Bool = true
     var alertStaleDataEnabled: Bool = true
+    var alertCriticalEnabled: Bool = UserDefaults.standard.object(forKey: "alertCriticalEnabled") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(alertCriticalEnabled, forKey: "alertCriticalEnabled") }
+    }
     static let staleThreshold: TimeInterval = 20 * 60
 
     var isStale: Bool {
@@ -91,6 +160,9 @@ final class GlucoseMonitor {
     }
     var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
         didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
+    }
+    var menuBarStyle: MenuBarStyle = MenuBarStyle(rawValue: UserDefaults.standard.string(forKey: "menuBarStyle") ?? "") ?? .full {
+        didSet { UserDefaults.standard.set(menuBarStyle.rawValue, forKey: "menuBarStyle") }
     }
     var showDelta: Bool = UserDefaults.standard.object(forKey: "showDelta") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showDelta, forKey: "showDelta") }
@@ -127,7 +199,28 @@ final class GlucoseMonitor {
     var nextRefreshDate: Date?
     private var isStarting = false
 
+    private static let readingsURL: URL? = {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("DexBar/readings.json")
+    }()
+
+    private func saveReadings() {
+        guard let url = Self.readingsURL else { return }
+        let dir = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let data = try? JSONEncoder().encode(recentReadings)
+        try? data?.write(to: url, options: .atomic)
+    }
+
+    private func loadPersistedReadings() {
+        guard let url = Self.readingsURL,
+              let data = try? Data(contentsOf: url),
+              let readings = try? JSONDecoder().decode([GlucoseReading].self, from: data) else { return }
+        recentReadings = readings
+    }
+
     init() {
+        loadPersistedReadings()
         Task { @MainActor in
             await autoConnectIfNeeded()
         }
@@ -224,11 +317,12 @@ final class GlucoseMonitor {
             let existingDates = Set(recentReadings.map { $0.date })
             let toAdd = newReadings.filter { !existingDates.contains($0.date) }
             let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
-            recentReadings = Array(merged.prefix(288))
+            recentReadings = Array(merged.prefix(25920))  // 90 days × 288 readings/day
             lastUpdated = Date()
             state = .connected
             await evaluateAlerts(reading: reading)
             await evaluateStaleAlert(reading: reading)
+            saveReadings()
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired {
             await reAuthenticateIfPossible()
@@ -284,7 +378,8 @@ final class GlucoseMonitor {
 
         if alertUrgentHighEnabled, v > alertUrgentHighThresholdMgdL {
             await nm.send(type: .urgentHigh, title: "Urgent High Blood Sugar",
-                body: "\(displayVal) \(unitStr) — urgently above your high threshold")
+                body: "\(displayVal) \(unitStr) — urgently above your high threshold",
+                isCritical: alertCriticalEnabled)
         } else if alertHighEnabled, v > alertHighThresholdMgdL {
             await nm.send(type: .high, title: "High Blood Sugar",
                 body: "\(displayVal) \(unitStr) — above your high alert threshold")
@@ -292,7 +387,8 @@ final class GlucoseMonitor {
 
         if alertUrgentLowEnabled, v < alertUrgentLowThresholdMgdL {
             await nm.send(type: .urgentLow, title: "Urgent Low Blood Sugar",
-                body: "\(displayVal) \(unitStr) — urgently below your low threshold")
+                body: "\(displayVal) \(unitStr) — urgently below your low threshold",
+                isCritical: alertCriticalEnabled)
         } else if alertLowEnabled, v < alertLowThresholdMgdL {
             await nm.send(type: .low, title: "Low Blood Sugar",
                 body: "\(displayVal) \(unitStr) — below your low alert threshold")

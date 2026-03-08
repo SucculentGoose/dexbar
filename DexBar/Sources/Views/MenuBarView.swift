@@ -13,6 +13,9 @@ struct MenuBarView: View {
             // Chart
             chartSection
             Divider()
+            // Time in Range
+            tirSection
+            Divider()
             // Actions
             actionsSection
         }
@@ -68,6 +71,92 @@ struct MenuBarView: View {
         GlucoseChartView()
             .environment(monitor)
             .padding(.vertical, 8)
+    }
+
+    private var tirSection: some View {
+        @Bindable var monitor = monitor
+        let stats = monitor.tirStats
+        return VStack(spacing: 6) {
+            HStack {
+                Text("Time in Range")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker("Stats range", selection: $monitor.selectedStatsRange) {
+                    ForEach(StatsTimeRange.allCases, id: \.self) { r in
+                        Text(r.rawValue).tag(r)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 180)
+            }
+            if let gmi = monitor.gmi {
+                let span = monitor.statsDataSpanDays
+                let insufficient = span < 14
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        HStack(spacing: 4) {
+                            Label(String(format: "GMI %.1f%%", gmi), systemImage: "waveform.path.ecg")
+                            if insufficient {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
+                        .foregroundStyle(insufficient ? .secondary : .primary)
+                        Spacer()
+                        Text("\(stats.total) readings")
+                            .foregroundStyle(.tertiary)
+                    }
+                    if insufficient {
+                        Text(String(format: "Based on %.1fd of data — 14d+ recommended", span))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.caption2)
+            } else {
+                HStack {
+                    Spacer()
+                    Text("\(stats.total) readings")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            if stats.total > 0 {
+                // Stacked bar
+                GeometryReader { geo in
+                    HStack(spacing: 1) {
+                        monitor.colorLow
+                            .frame(width: geo.size.width * stats.lowPct / 100)
+                        monitor.colorInRange
+                            .frame(width: geo.size.width * stats.inRangePct / 100)
+                        monitor.colorHigh
+                            .frame(maxWidth: .infinity)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .frame(height: 8)
+
+                // Labels
+                HStack {
+                    Label(String(format: "%.0f%%", stats.lowPct), systemImage: "arrow.down")
+                        .foregroundStyle(monitor.colorLow)
+                    Spacer()
+                    Label(String(format: "%.0f%%", stats.inRangePct), systemImage: "checkmark")
+                        .foregroundStyle(monitor.colorInRange)
+                    Spacer()
+                    Label(String(format: "%.0f%%", stats.highPct), systemImage: "arrow.up")
+                        .foregroundStyle(monitor.colorHigh)
+                }
+                .font(.caption2)
+            } else {
+                Text("No readings in this period")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     private var actionsSection: some View {

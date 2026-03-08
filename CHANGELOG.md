@@ -5,6 +5,16 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-08
+
+### Added
+- **Time in Range panel** — new section in the popover showing a stacked low/in-range/high bar and percentages; uses an independent 2d/7d/14d/30d/90d time range picker separate from the chart
+- **GMI (Glucose Management Indicator)** — estimated HbA1c % displayed alongside TiR stats; shows a warning and actual data span when fewer than 14 days of history are available
+- **Persistent reading history** — readings are now saved to disk on every refresh and restored on launch, allowing TiR and GMI stats to accumulate up to 90 days of history
+- **Shaded in-range band on chart** — the target glucose zone is now filled with a subtle tinted band in addition to the existing threshold lines
+- **Menu bar style options** — new setting in Display to choose between Value & Arrow (default), Compact, Value Only, or Arrow Only
+- **Focus/DND override for urgent alerts** — new toggle in Alerts to make Urgent High and Urgent Low notifications break through macOS Focus and Do Not Disturb
+
 ## [1.3.3] - 2026-03-06
 
 ### Fixed

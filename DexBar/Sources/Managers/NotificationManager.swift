@@ -17,7 +17,7 @@ actor NotificationManager {
         _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
-    func send(type: AlertType, title: String, body: String) async {
+    func send(type: AlertType, title: String, body: String, isCritical: Bool = false) async {
         let now = Date()
         if let last = lastNotified[type], now.timeIntervalSince(last) < cooldown {
             return // still in cooldown
@@ -28,6 +28,9 @@ actor NotificationManager {
         content.title = title
         content.body = body
         content.sound = .default
+        if isCritical {
+            content.interruptionLevel = .timeSensitive
+        }
 
         let request = UNNotificationRequest(
             identifier: "\(type.rawValue)-\(now.timeIntervalSince1970)",

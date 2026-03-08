@@ -54,9 +54,19 @@ struct MenuBarLabel: View {
                 if monitor.coloredMenuBar {
                     Image(nsImage: colorDot(nsColor: NSColor(monitor.readingColor), diameter: 7))
                 }
-                let delta = (monitor.showDelta ? monitor.formattedDelta(unit: monitor.unit) : nil).map { " \($0)" } ?? ""
                 let stale = monitor.isStale ? " ⚠" : ""
-                Text(reading.menuBarLabel(unit: monitor.unit) + delta + stale)
+                let value = reading.displayValue(unit: monitor.unit)
+                let arrow = reading.trend.arrow
+                let delta = (monitor.showDelta ? monitor.formattedDelta(unit: monitor.unit) : nil).map { " \($0)" } ?? ""
+                let label: String = {
+                    switch monitor.menuBarStyle {
+                    case .full:      return "\(value) \(arrow)\(delta)\(stale)"
+                    case .compact:   return "\(value)\(arrow)\(delta)\(stale)"
+                    case .valueOnly: return "\(value)\(delta)\(stale)"
+                    case .arrowOnly: return "\(arrow)\(stale)"
+                    }
+                }()
+                Text(label)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(monitor.isStale ? .secondary : .primary)
             }

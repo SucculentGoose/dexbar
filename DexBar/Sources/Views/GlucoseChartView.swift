@@ -35,6 +35,14 @@ struct GlucoseChartView: View {
 
     private func chart(readings: [GlucoseReading]) -> some View {
         Chart {
+            // In-range shaded band
+            RectangleMark(
+                xStart: nil, xEnd: nil,
+                yStart: .value("Low", threshold(monitor.alertLowThresholdMgdL)),
+                yEnd: .value("High", threshold(monitor.alertHighThresholdMgdL))
+            )
+            .foregroundStyle(monitor.colorInRange.opacity(0.08))
+
             // Threshold reference lines
             if monitor.alertHighEnabled {
                 RuleMark(y: .value("High", threshold(monitor.alertHighThresholdMgdL)))

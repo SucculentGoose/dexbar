@@ -29,6 +29,7 @@ struct SettingsView: View {
     @AppStorage("alertRisingFastEnabled") private var alertRisingFast  = true
     @AppStorage("alertDroppingFastEnabled") private var alertDroppingFast = true
     @AppStorage("alertStaleDataEnabled")  private var alertStaleData   = true
+    @AppStorage("alertCriticalEnabled")   private var alertCriticalEnabled = false
 
     private let minGap = 5.0   // minimum mg/dL gap between adjacent thresholds
 
@@ -115,6 +116,11 @@ struct SettingsView: View {
                 Toggle("Color-coded indicator dot", isOn: $monitor.coloredMenuBar)
                 Text("Shows a colored dot next to the reading based on your threshold zones.")
                     .font(.caption).foregroundStyle(.secondary)
+                Picker("Menu bar style", selection: $monitor.menuBarStyle) {
+                    ForEach(MenuBarStyle.allCases, id: \.self) { style in
+                        Text(style.rawValue).tag(style)
+                    }
+                }
                 Toggle("Show delta", isOn: $monitor.showDelta)
                 Text("Appends the change from the previous reading (e.g. +3 or −0.2) next to the value.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -213,6 +219,13 @@ struct SettingsView: View {
             Section("No Data") {
                 Toggle("Alert when no new readings for 20 min", isOn: $alertStaleData)
                     .onChange(of: alertStaleData) { _, v in monitor.alertStaleDataEnabled = v }
+            }
+            Section("Focus & Do Not Disturb") {
+                Toggle("Break through Focus/DND for urgent alerts", isOn: $alertCriticalEnabled)
+                    .onChange(of: alertCriticalEnabled) { _, v in monitor.alertCriticalEnabled = v }
+                Text("Urgent High and Urgent Low alerts will override Focus mode and Do Not Disturb.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section {
                 Text("Fires a test notification immediately, bypassing cooldowns.")
@@ -331,6 +344,7 @@ struct SettingsView: View {
         monitor.alertLowThresholdMgdL = alertLowMgdL
         monitor.alertRisingFastEnabled = alertRisingFast
         monitor.alertDroppingFastEnabled = alertDroppingFast
+        monitor.alertCriticalEnabled = alertCriticalEnabled
     }
 
     private func connect() async {
