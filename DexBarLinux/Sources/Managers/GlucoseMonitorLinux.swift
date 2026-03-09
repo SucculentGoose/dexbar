@@ -133,6 +133,39 @@ final class GlucoseMonitorLinux {
         set { defaults.set(newValue, forKey: "alertStaleDataEnabled") }
     }
 
+    // MARK: - Reading color (matches macOS defaults)
+
+    var colorUrgentLow:  String {
+        get { defaults.string(forKey: "colorUrgentLow")  ?? "#D91A1A" }
+        set { defaults.set(newValue, forKey: "colorUrgentLow") }
+    }
+    var colorLow: String {
+        get { defaults.string(forKey: "colorLow")  ?? "#FF8C00" }
+        set { defaults.set(newValue, forKey: "colorLow") }
+    }
+    var colorInRange: String {
+        get { defaults.string(forKey: "colorInRange") ?? "#34C759" }
+        set { defaults.set(newValue, forKey: "colorInRange") }
+    }
+    var colorHigh: String {
+        get { defaults.string(forKey: "colorHigh") ?? "#FFD60A" }
+        set { defaults.set(newValue, forKey: "colorHigh") }
+    }
+    var colorUrgentHigh: String {
+        get { defaults.string(forKey: "colorUrgentHigh") ?? "#D91A1A" }
+        set { defaults.set(newValue, forKey: "colorUrgentHigh") }
+    }
+
+    var readingColor: String {
+        guard let reading = currentReading else { return colorInRange }
+        let v = Double(reading.value)
+        if v < alertUrgentLowThresholdMgdL  { return colorUrgentLow  }
+        if v < alertLowThresholdMgdL         { return colorLow         }
+        if v > alertUrgentHighThresholdMgdL { return colorUrgentHigh }
+        if v > alertHighThresholdMgdL        { return colorHigh        }
+        return colorInRange
+    }
+
     // MARK: - Private
 
     private let defaults = UserDefaults.standard

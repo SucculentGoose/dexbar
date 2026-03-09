@@ -59,15 +59,8 @@ final class StatusOverlay {
                 deltaText = ""
             }
 
-            // Color based on range
-            let v = Double(reading.value)
-            if v < Double(monitor.alertUrgentLowThresholdMgdL) || v > Double(monitor.alertUrgentHighThresholdMgdL) {
-                color = "#ff4444"   // urgent: red
-            } else if v < Double(monitor.alertLowThresholdMgdL) || v > Double(monitor.alertHighThresholdMgdL) {
-                color = "#ffaa00"   // warning: orange
-            } else {
-                color = "#44ff88"   // in range: green
-            }
+            // Color based on range (uses monitor's configurable colors)
+            color = monitor.readingColor
         } else {
             switch monitor.state {
             case .idle:      valueText = "---"; color = "#888888"

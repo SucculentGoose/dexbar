@@ -68,8 +68,8 @@ final class TrayIcon {
 
     // MARK: - Private
 
-    /// Writes a 22×22 SVG icon with the glucose value on top and trend arrow below.
-    /// KDE Plasma constrains all SNI icons to a square tray slot, so wide icons get squished.
+    /// Writes a 22×22 SVG icon with a colored status dot + value + trend arrow.
+    /// The dot color matches the macOS readingColor (green/yellow/orange/red).
     private func setIconLabel(_ text: String) {
         iconCounter += 1
         let iconName = "dexbar-\(iconCounter)"
@@ -83,8 +83,12 @@ final class TrayIcon {
         // Font size: shrink for longer values (mmol/L can be "22.2")
         let valueFontSize = valuePart.count >= 4 ? 8 : 10
 
+        // Colored dot matching macOS readingColor
+        let dotColor = monitor?.readingColor ?? "#888888"
+
         let svg: String
         if arrowPart.isEmpty {
+            // Error / idle state: no dot, centered text
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
               <text x="11" y="15" font-family="sans-serif" font-size="12"
@@ -94,10 +98,11 @@ final class TrayIcon {
         } else {
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <text x="11" y="11" font-family="sans-serif" font-size="\(valueFontSize)"
+              <circle cx="11" cy="5" r="3.5" fill="\(dotColor)"/>
+              <text x="11" y="14" font-family="sans-serif" font-size="\(valueFontSize)"
                     font-weight="bold" fill="white" text-anchor="middle">\(valuePart)</text>
-              <text x="11" y="20" font-family="sans-serif" font-size="9"
-                    fill="#88ccff" text-anchor="middle">\(arrowPart)</text>
+              <text x="11" y="21" font-family="sans-serif" font-size="8"
+                    fill="\(dotColor)" text-anchor="middle">\(arrowPart)</text>
             </svg>
             """
         }
