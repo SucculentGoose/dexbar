@@ -13,8 +13,95 @@ success() { echo -e "${GREEN}✓${RESET} $*"; }
 warn()    { echo -e "${YELLOW}⚠${RESET}  $*"; }
 die()     { echo -e "${RED}✗ Error:${RESET} $*" >&2; exit 1; }
 
-# ── checks ─────────────────────────────────────────────────────────────────────
-[[ "$(uname)" == "Darwin" ]] || die "DexBar requires macOS."
+OS="$(uname)"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Linux install — compile from source
+# ══════════════════════════════════════════════════════════════════════════════
+if [[ "$OS" == "Linux" ]]; then
+  LINUX_INSTALL_DIR="/usr/local/bin"
+  DESKTOP_DIR="/usr/share/applications"
+
+  info "DexBar Linux — building from source"
+
+  # ── check for Swift ──────────────────────────────────────────────────────────
+  command -v swift >/dev/null 2>&1 || die "Swift not found. Install Swift 6.0+ from https://swift.org/download"
+  SWIFT_VERSION=$(swift --version 2>&1 | head -1)
+  info "Swift: $SWIFT_VERSION"
+
+  # ── check / install system dependencies ─────────────────────────────────────
+  MISSING_DEPS=()
+  pkg-config --exists gtk+-3.0           2>/dev/null || MISSING_DEPS+=("libgtk-3-dev")
+  pkg-config --exists ayatana-appindicator3-0.1 2>/dev/null \
+    || pkg-config --exists appindicator3-0.1 2>/dev/null \
+    || MISSING_DEPS+=("libayatana-appindicator3-dev")
+  pkg-config --exists libsecret-1        2>/dev/null || MISSING_DEPS+=("libsecret-1-dev")
+  pkg-config --exists libnotify          2>/dev/null || MISSING_DEPS+=("libnotify-dev")
+
+  if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    warn "Missing system dependencies: ${MISSING_DEPS[*]}"
+    info "Installing via apt…"
+    sudo apt-get install -y "${MISSING_DEPS[@]}" \
+      || die "apt install failed. Install manually:\n  sudo apt install ${MISSING_DEPS[*]}"
+    success "Dependencies installed"
+  else
+    success "All system dependencies present"
+  fi
+
+  # ── build ────────────────────────────────────────────────────────────────────
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cd "$SCRIPT_DIR"
+  info "Building DexBarLinux (release) in: $SCRIPT_DIR"
+  swift build -c release --product DexBarLinux \
+    || die "Build failed. See output above."
+  success "Build complete"
+
+  # ── install binary ───────────────────────────────────────────────────────────
+  BINARY="${SCRIPT_DIR}/.build/release/DexBarLinux"
+  [[ -f "$BINARY" ]] \
+    || die "Binary not found at: $BINARY\nCheck build output above for errors."
+  info "Installing binary to ${LINUX_INSTALL_DIR}/dexbar…"
+  if [[ -w "$LINUX_INSTALL_DIR" ]]; then
+    cp "$BINARY" "${LINUX_INSTALL_DIR}/dexbar" \
+      || die "Install failed."
+  else
+    sudo cp "$BINARY" "${LINUX_INSTALL_DIR}/dexbar" \
+      || die "Install failed. Check permissions."
+  fi
+  success "Binary installed"
+
+  # ── install .desktop file ────────────────────────────────────────────────────
+  DESKTOP_FILE="${DESKTOP_DIR}/dexbar.desktop"
+  DESKTOP_CONTENT="[Desktop Entry]
+Type=Application
+Name=DexBar
+Comment=Dexcom glucose readings in your system tray
+Exec=${LINUX_INSTALL_DIR}/dexbar
+Icon=dialog-information
+Categories=Utility;
+StartupNotify=false"
+  info "Installing .desktop file…"
+  if [[ -w "$DESKTOP_DIR" ]]; then
+    echo "$DESKTOP_CONTENT" > "$DESKTOP_FILE"
+  else
+    echo "$DESKTOP_CONTENT" | sudo tee "$DESKTOP_FILE" >/dev/null
+  fi
+  success ".desktop file installed"
+
+  # ── done ─────────────────────────────────────────────────────────────────────
+  success "DexBar installed to ${LINUX_INSTALL_DIR}/dexbar"
+  echo ""
+  echo -e "  Run now:      ${BOLD}dexbar &${RESET}"
+  echo -e "  Enable autostart in DexBar Settings → Display → Launch at Login"
+  echo ""
+  exit 0
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# macOS install — download pre-built .app from GitHub Releases
+# ══════════════════════════════════════════════════════════════════════════════
+
+[[ "$OS" == "Darwin" ]] || die "Unsupported OS: $OS. Only macOS and Linux are supported."
 
 SW_VERS=$(sw_vers -productVersion)
 MAJOR=$(echo "$SW_VERS" | cut -d. -f1)

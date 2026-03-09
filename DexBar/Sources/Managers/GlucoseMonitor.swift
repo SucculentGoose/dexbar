@@ -1,4 +1,5 @@
 import AppKit
+import DexBarCore
 import Foundation
 import Observation
 import SwiftUI
@@ -8,67 +9,6 @@ enum MenuBarStyle: String, CaseIterable {
     case compact   = "Compact"
     case valueOnly = "Value Only"
     case arrowOnly = "Arrow Only"
-}
-
-enum StatsTimeRange: String, CaseIterable {
-    case twoDays     = "2d"
-    case sevenDays   = "7d"
-    case fourteenDays = "14d"
-    case thirtyDays  = "30d"
-    case ninetyDays  = "90d"
-
-    var interval: TimeInterval {
-        switch self {
-        case .twoDays:      2  * 86400
-        case .sevenDays:    7  * 86400
-        case .fourteenDays: 14 * 86400
-        case .thirtyDays:   30 * 86400
-        case .ninetyDays:   90 * 86400
-        }
-    }
-}
-
-enum TimeRange: String, CaseIterable {
-    case threeHours  = "3h"
-    case sixHours    = "6h"
-    case twelveHours = "12h"
-    case day         = "24h"
-
-    var interval: TimeInterval {
-        switch self {
-        case .threeHours:  3  * 3600
-        case .sixHours:    6  * 3600
-        case .twelveHours: 12 * 3600
-        case .day:         24 * 3600
-        }
-    }
-}
-
-enum MonitorState: Equatable {
-    case idle
-    case loading
-    case connected
-    case error(String)
-
-    var statusText: String {
-        switch self {
-        case .idle: "Not connected"
-        case .loading: "Loading…"
-        case .connected: "Connected"
-        case .error(let msg): msg
-        }
-    }
-}
-
-struct TiRStats {
-    let lowCount: Int
-    let inRangeCount: Int
-    let highCount: Int
-    let total: Int
-
-    var lowPct: Double    { total > 0 ? Double(lowCount)     / Double(total) * 100 : 0 }
-    var inRangePct: Double { total > 0 ? Double(inRangeCount) / Double(total) * 100 : 0 }
-    var highPct: Double   { total > 0 ? Double(highCount)    / Double(total) * 100 : 0 }
 }
 
 @MainActor

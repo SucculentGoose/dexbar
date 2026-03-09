@@ -17,6 +17,8 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.9.0"
+  DexBarCore:
+    path: .
 
 targets:
   DexBar:
@@ -43,6 +45,8 @@ targets:
         SUEnableAutomaticChecks: true
         SUPublicEDKey: "lph61xMGvNVzuOOFx95/0S9GvWAzZdvfUrYqxQJJkQA="
     dependencies:
+      - package: DexBarCore
+        product: DexBarCore
       - package: Sparkle
         product: Sparkle
     entitlements:

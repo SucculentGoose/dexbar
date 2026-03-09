@@ -1,0 +1,5 @@
+module CGtk3 [system] {
+    header "/usr/include/gtk-3.0/gtk/gtk.h"
+    link "gtk-3"
+    export *
+}

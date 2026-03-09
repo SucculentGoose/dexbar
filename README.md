@@ -110,22 +110,93 @@ API endpoints used:
 ## Project structure
 
 ```
-DexBar/
+dexbar/
 ├── Sources/
-│   ├── DexBarApp.swift               # App entry point, MenuBarExtra
-│   ├── Models/
-│   │   └── GlucoseReading.swift      # Data model, trend enum, unit conversion
-│   ├── Services/
-│   │   ├── DexcomService.swift       # Dexcom Share API client (async/await)
-│   │   └── KeychainService.swift     # Secure credential storage
-│   ├── Managers/
-│   │   ├── GlucoseMonitor.swift      # Polling loop, alert evaluation
-│   │   └── NotificationManager.swift # macOS notification delivery
-│   └── Views/
-│       ├── MenuBarView.swift         # Popover UI
-│       └── SettingsView.swift        # Settings window
-└── Assets.xcassets/
+│   └── DexBarCore/                   # Shared library (macOS + Linux)
+│       ├── Models/
+│       │   └── GlucoseReading.swift  # Data model, trend enum, unit conversion
+│       ├── Services/
+│       │   └── DexcomService.swift   # Dexcom Share API client (async/await)
+│       └── Shared/
+│           └── CoreTypes.swift       # MonitorState, TiRStats, TimeRange enums
+├── DexBar/                           # macOS app
+│   └── Sources/
+│       ├── DexBarApp.swift           # App entry point, MenuBarExtra
+│       ├── Services/
+│       │   └── KeychainService.swift # Secure credential storage (Keychain)
+│       ├── Managers/
+│       │   ├── GlucoseMonitor.swift  # Polling loop, alert evaluation
+│       │   └── NotificationManager.swift  # macOS notification delivery
+│       └── Views/
+│           ├── MenuBarView.swift     # Popover UI
+│           ├── SettingsView.swift    # Settings window
+│           └── GlucoseChartView.swift
+└── DexBarLinux/                      # Linux app
+    └── Sources/
+        ├── main.swift                # Entry point (GTK3 main loop)
+        ├── Managers/
+        │   ├── GlucoseMonitorLinux.swift  # Polling loop, alert evaluation
+        │   └── LinuxNotificationManager.swift  # libnotify notifications
+        ├── Services/
+        │   └── SecretServiceStorage.swift  # KDE Wallet / GNOME Keyring
+        └── Views/
+            ├── TrayIcon.swift        # libayatana-appindicator3 tray icon
+            ├── PopupWindow.swift     # GTK3 status popup
+            ├── SettingsWindow.swift  # GTK3 settings window
+            └── AutoStart.swift      # ~/.config/autostart/ management
 ```
+
+---
+
+## Linux
+
+DexBar also runs on Linux as a system tray application. It is tested on **KDE Plasma 6** but works on any desktop environment that supports the StatusNotifierItem protocol (GNOME with AppIndicator extension, XFCE, etc.).
+
+### Linux Requirements
+
+- Swift 6.0+ — [swift.org/download](https://swift.org/download)
+- GTK3: `libgtk-3-dev`
+- System tray: `libayatana-appindicator3-dev`
+- Credential storage: `libsecret-1-dev`
+- Desktop notifications: `libnotify-dev`
+
+### Linux Installation
+
+```bash
+# 1. Install system dependencies (Debian/Ubuntu/KDE Neon)
+sudo apt install libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev libnotify-dev
+
+# 2. Clone and build
+git clone https://github.com/SucculentGoose/dexbar
+cd dexbar
+swift build -c release --target DexBarLinux
+
+# 3. Install
+sudo install -m 755 .build/release/DexBarLinux /usr/local/bin/dexbar
+```
+
+Or use the install script which does all of the above:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SucculentGoose/dexbar/main/install.sh | bash
+```
+
+### Linux First Run
+
+```bash
+dexbar &
+```
+
+A tray icon (`…` or `---`) appears in your system tray. Left-click to open the status popup; right-click for the menu. Open **Settings** → **Account**, enter your Dexcom credentials, choose your region, and click **Connect**.
+
+Credentials are stored securely in KDE Wallet (or GNOME Keyring) via the Secret Service D-Bus API. On first run KDE Wallet may prompt you to create a wallet or unlock an existing one.
+
+### Linux Known Limitations
+
+- The interactive glucose chart is not available in the Linux version (planned for a future release).
+- Automatic updates are not available; upgrade by re-running the install steps.
+
+
 
 ## License
 

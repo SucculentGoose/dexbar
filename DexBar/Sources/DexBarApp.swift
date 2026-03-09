@@ -1,3 +1,4 @@
+@_exported import DexBarCore
 import SwiftUI
 import AppKit
 import Sparkle
