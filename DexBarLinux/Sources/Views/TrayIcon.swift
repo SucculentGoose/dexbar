@@ -60,7 +60,7 @@ final class TrayIcon {
             case .idle:      label = "---"
             case .loading:   label = "…"
             case .connected: label = "---"
-            case .error:     label = "!"
+            case .error:     label = "⚠"
             }
         }
         setIconLabel(label)
