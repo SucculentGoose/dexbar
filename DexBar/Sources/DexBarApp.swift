@@ -74,6 +74,9 @@ struct MenuBarLabel: View {
             ProgressView()
                 .scaleEffect(0.5)
                 .frame(width: 16, height: 16)
+        } else if case .error = monitor.state {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.yellow)
         } else {
             Image(systemName: "waveform.path.ecg")
         }

@@ -76,7 +76,7 @@ The script downloads the latest release directly via `curl` (bypassing macOS qua
 
 ### First-time setup
 
-1. Click the `〜` icon in your menu bar
+1. Click the ![ECG flatline icon](docs/menu-bar-icon.png) icon in your menu bar
 2. Click **Settings…**
 3. Enter your Dexcom username, password, and region
 4. Click **Connect**
