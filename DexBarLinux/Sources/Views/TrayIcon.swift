@@ -16,6 +16,8 @@ final class TrayIcon {
     private var onOpenSettings: (() -> Void)?
     private var onToggleOverlay: (() -> Void)?
     private var iconCounter = 0
+    private var updateMenuItem: GWidget?
+    private var updateSepItem: GWidget?
 
     // Directory where we write per-update SVG icon files.
     private let iconDir: URL = {
@@ -50,65 +52,72 @@ final class TrayIcon {
 
     func update() {
         guard let monitor else { return }
-        let label: String
         if let reading = monitor.currentReading {
             let value = reading.displayValue(unit: monitor.unit)
             let arrow = reading.trend.arrow
-            label = monitor.isStale ? "⚠ \(value)" : "\(value) \(arrow)"
+            let delta = monitor.formattedDelta(unit: monitor.unit)
+            if monitor.isStale {
+                setIconReading("⚠ \(value)", arrow: "", delta: nil, color: "#AAAAAA")
+            } else {
+                setIconReading(value, arrow: arrow, delta: delta, color: monitor.readingColor)
+            }
         } else {
+            let label: String
             switch monitor.state {
             case .idle:      label = "---"
             case .loading:   label = "…"
             case .connected: label = "---"
             case .error:     label = "⚠"
             }
+            setIconReading(label, arrow: "", delta: nil, color: "#AAAAAA")
         }
-        setIconLabel(label)
     }
 
     // MARK: - Private
 
-    /// Writes a 22×22 SVG icon with a colored status dot + value + trend arrow.
-    /// The dot color matches the macOS readingColor (green/yellow/orange/red).
-    private func setIconLabel(_ text: String) {
+    /// Writes a 22×22 SVG icon with glucose value + trend arrow on one line (colored by range),
+    /// and delta (e.g. "+3") on the line below in the same color.
+    private func setIconReading(_ value: String, arrow: String, delta: String?, color: String) {
         iconCounter += 1
         let iconName = "dexbar-\(iconCounter)"
         let svgFile  = iconDir.appendingPathComponent("\(iconName).svg")
 
-        // Split "165 →" into value + arrow
-        let parts     = text.trimmingCharacters(in: .whitespaces).components(separatedBy: " ")
-        let valuePart = parts.first ?? text
-        let arrowPart = parts.count > 1 ? parts.last! : ""
+        let accessLabel = [value, arrow, delta].compactMap { $0 }.joined(separator: " ")
 
-        // Font size: shrink for longer values (mmol/L can be "22.2")
-        let valueFontSize = valuePart.count >= 4 ? 8 : 10
-
-        // Colored dot matching macOS readingColor
-        let dotColor = monitor?.readingColor ?? "#888888"
+        // Shrink font for long mmol/L values like "22.2"
+        let valueFontSize = value.count >= 4 ? 8 : 10
 
         let svg: String
-        if arrowPart.isEmpty {
-            // Error / idle state: no dot, centered text
+        if arrow.isEmpty {
+            // Error / idle / loading: single centered line in muted color
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <text x="11" y="15" font-family="sans-serif" font-size="12"
-                    font-weight="bold" fill="white" text-anchor="middle">\(valuePart)</text>
+              <text x="11" y="15" font-family="sans-serif" font-size="10"
+                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)</text>
+            </svg>
+            """
+        } else if let delta, !delta.isEmpty {
+            // Full display: value+arrow on top line, delta on bottom line
+            svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+              <text x="11" y="12" font-family="sans-serif" font-size="\(valueFontSize)"
+                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)\(arrow)</text>
+              <text x="11" y="21" font-family="sans-serif" font-size="8"
+                    fill="\(color)" text-anchor="middle">\(delta)</text>
             </svg>
             """
         } else {
+            // No delta yet (only one reading): single centered line
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <circle cx="11" cy="5" r="3.5" fill="\(dotColor)"/>
-              <text x="11" y="14" font-family="sans-serif" font-size="\(valueFontSize)"
-                    font-weight="bold" fill="white" text-anchor="middle">\(valuePart)</text>
-              <text x="11" y="21" font-family="sans-serif" font-size="8"
-                    fill="\(dotColor)" text-anchor="middle">\(arrowPart)</text>
+              <text x="11" y="15" font-family="sans-serif" font-size="\(valueFontSize)"
+                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)\(arrow)</text>
             </svg>
             """
         }
 
         try? svg.write(to: svgFile, atomically: true, encoding: .utf8)
-        app_indicator_set_icon_full(indicator, iconName, text)
+        app_indicator_set_icon_full(indicator, iconName, accessLabel)
 
         if iconCounter > 1 {
             let oldFile = iconDir.appendingPathComponent("dexbar-\(iconCounter - 1).svg")
@@ -119,12 +128,17 @@ final class TrayIcon {
     private func setupMenu() {
         let menu = gtk_menu_new()!
 
+        // Update available item — hidden until an update is found
+        let updateItem   = gtk_menu_item_new_with_label("Update Available")!
+        let updateSep    = gtk_separator_menu_item_new()!
         let refreshItem  = gtk_menu_item_new_with_label("Refresh Now")!
         let overlayItem  = gtk_menu_item_new_with_label("Toggle Status Overlay")!
         let settingsItem = gtk_menu_item_new_with_label("Open Settings")!
         let sepItem      = gtk_separator_menu_item_new()!
         let quitItem     = gtk_menu_item_new_with_label("Quit")!
 
+        gtk_menu_shell_append(asMenuShell(menu), updateItem)
+        gtk_menu_shell_append(asMenuShell(menu), updateSep)
         gtk_menu_shell_append(asMenuShell(menu), refreshItem)
         gtk_menu_shell_append(asMenuShell(menu), overlayItem)
         gtk_menu_shell_append(asMenuShell(menu), settingsItem)
@@ -140,7 +154,28 @@ final class TrayIcon {
         gtkConnect(quitItem,     signal: "activate") { gtk_main_quit() }
 
         gtk_widget_show_all(menu)
+
+        // Hide update items until an update is actually available
+        gtk_widget_hide(updateItem)
+        gtk_widget_hide(updateSep)
+        self.updateMenuItem = updateItem
+        self.updateSepItem  = updateSep
         app_indicator_set_menu(indicator, asMenu(menu))
+    }
+
+    /// Reveals the "Install Update" menu item. Clicking it triggers the download+install+restart flow.
+    func showUpdateAvailable(version: String, onInstall: @escaping () -> Void) {
+        guard let item = updateMenuItem, let sep = updateSepItem else { return }
+        gtk_menu_item_set_label(asMenuItem(item), "⬆ Install Update: v\(version)")
+        gtkConnect(item, signal: "activate") { onInstall() }
+        gtk_widget_show(item)
+        gtk_widget_show(sep)
+    }
+
+    /// Updates the label of the update menu item (e.g. "Downloading… 45%", "Restarting…").
+    func setUpdateStatus(_ text: String) {
+        guard let item = updateMenuItem else { return }
+        gtk_menu_item_set_label(asMenuItem(item), text)
     }
 }
 #endif

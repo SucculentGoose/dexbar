@@ -74,6 +74,7 @@ final class PopupWindow {
     private func buildWindow() {
         window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
         gtk_window_set_title(asWindow(window), "DexBar")
+        gtkSetAppIcon(window)
         gtk_window_set_default_size(asWindow(window), 220, 240)
         gtk_window_set_resizable(asWindow(window), 0)
         gtkConnectDeleteHide(window) { [weak self] in

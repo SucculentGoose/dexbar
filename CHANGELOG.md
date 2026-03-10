@@ -5,6 +5,21 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-09
+
+### Added
+- **Linux support** — new `dexbar` app for Linux desktops using GTK3 and the StatusNotifierItem (SNI) tray protocol; tested on KDE Plasma 6
+- **Linux tray icon** — system tray icon displays the current glucose value, trend arrow, and delta (e.g. `115→ / +3`) as an SVG; text is colored by glucose range (urgent low / low / in range / high / urgent high)
+- **Linux status overlay** — optional always-on-top floating window showing the current reading in large colored text; toggled via the tray menu
+- **Linux settings window** — tabbed GTK3 settings UI covering Account, Display, Alerts, and About; includes Colored Tray Icon toggle, unit selection, refresh interval, and launch-at-login
+- **Linux credential storage** — passwords stored in the system keyring via libsecret (falls back to UserDefaults if unavailable)
+- **Linux notifications** — glucose alerts delivered via libnotify
+- **Linux autostart** — optional launch-at-login via a systemd user service or XDG autostart entry
+- Colored Tray Icon toggle (Settings → Display) to enable or disable range-based text coloring; takes effect immediately
+
+### Changed
+- Shared networking and model code extracted into a `DexBarCore` Swift package library used by both the macOS and Linux apps
+
 ## [1.4.2] - 2026-03-09
 
 ### Added

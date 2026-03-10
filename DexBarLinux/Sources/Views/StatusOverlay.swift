@@ -120,6 +120,7 @@ final class StatusOverlay {
         gtk_window_set_skip_pager_hint(asWindow(win), 1)
         gtk_window_set_resizable(asWindow(win), 0)
         gtk_window_set_title(asWindow(win), "DexBar Overlay")
+        gtkSetAppIcon(win)
 
         // Transparent-ish dark background via opacity
         gtk_widget_set_opacity(win, 0.85)

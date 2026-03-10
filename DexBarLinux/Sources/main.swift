@@ -28,6 +28,7 @@ MainActor.assumeIsolated {
     let popup    = PopupWindow(monitor: monitor)
     let settings = SettingsWindow(monitor: monitor)
     let overlay  = StatusOverlay(monitor: monitor)
+    let updater  = LinuxUpdater()
 
     let tray = TrayIcon(
         monitor: monitor,
@@ -43,10 +44,32 @@ MainActor.assumeIsolated {
         overlay.update()
     }
 
+    updater.onUpdateAvailable = { version, install in
+        tray.showUpdateAvailable(version: version, onInstall: install)
+#if canImport(CLibNotify)
+        let body = "Version \(version) is available. Click 'Install Update' in the tray menu."
+        let n = notify_notification_new("DexBar Update Available", body, "software-update-available")
+        notify_notification_show(n, nil)
+#endif
+    }
+    updater.onStatusChange = { text in
+        tray.setUpdateStatus(text)
+    }
+
+    // Check for updates shortly after launch, then once every 24 hours
+    Task { @MainActor in
+        try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+        updater.checkForUpdates()
+    }
+    let updateTimer = Foundation.Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { _ in
+        Task { @MainActor in updater.checkForUpdates() }
+    }
+    _ = updateTimer // retain
+
     // MARK: - SIGTERM / SIGINT handler
 
-    signal(SIGTERM) { _ in gtk_main_quit() }
-    signal(SIGINT)  { _ in gtk_main_quit() }
+    signal(SIGTERM) { _ in UserDefaults.standard.synchronize(); gtk_main_quit() }
+    signal(SIGINT)  { _ in UserDefaults.standard.synchronize(); gtk_main_quit() }
 
     // MARK: - Run main loop
 
@@ -59,7 +82,17 @@ MainActor.assumeIsolated {
     }
     g_timeout_add(10, drainRunLoop, nil)
 
+    // Flush UserDefaults to disk every 5 seconds — swift-foundation on Linux does not
+    // auto-sync on every set(), so without this the plist is never written.
+    let syncDefaults: @convention(c) (gpointer?) -> gboolean = { _ in
+        UserDefaults.standard.synchronize()
+        return 1  // G_SOURCE_CONTINUE
+    }
+    g_timeout_add(5000, syncDefaults, nil)
+
     gtk_main()
+
+    UserDefaults.standard.synchronize()
 
 #if canImport(CLibNotify)
     notify_uninit()

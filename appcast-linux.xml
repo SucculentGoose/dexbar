@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>DexBar Linux</title>
+        <link>https://github.com/SucculentGoose/dexbar</link>
+        <description>DexBar Linux releases</description>
+        <language>en</language>
+        <item>
+            <title>DexBar Linux 1.5.0</title>
+            <pubDate>Mon, 09 Mar 2026 18:36:00 +0000</pubDate>
+            <sparkle:version>1.5.0</sparkle:version>
+            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.5.0/dexbar-linux-x86_64-v1.5.0.tar.gz"
+                length="0"
+                type="application/octet-stream"
+            />
+        </item>
+        <!-- Linux releases are added here automatically by the GitHub Actions release workflow -->
+    </channel>
+</rss>

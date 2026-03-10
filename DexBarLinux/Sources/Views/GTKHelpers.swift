@@ -1,5 +1,6 @@
 #if canImport(CGtk3)
 import CGtk3
+import Foundation
 
 // MARK: - Type casting helpers for GTK3's C GObject hierarchy
 
@@ -51,6 +52,15 @@ func packStart(_ box: GWidget?, _ child: GWidget?, expand: Bool = false, fill: B
 
 func containerAdd(_ parent: GWidget?, _ child: GWidget?) {
     gtk_container_add(asContainer(parent), child)
+}
+
+// MARK: - Window icon
+
+/// Sets the DexBar app icon on a GTK window from ~/.local/share/dexbar/icon.png.
+func gtkSetAppIcon(_ window: GWidget?) {
+    let iconPath = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".local/share/dexbar/icon.png").path
+    gtk_window_set_icon_from_file(asWindow(window), iconPath, nil)
 }
 
 // MARK: - Signal connection

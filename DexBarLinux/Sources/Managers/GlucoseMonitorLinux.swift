@@ -156,7 +156,13 @@ final class GlucoseMonitorLinux {
         set { defaults.set(newValue, forKey: "colorUrgentHigh") }
     }
 
+    var coloredTrayIcon: Bool {
+        get { defaults.object(forKey: "coloredMenuBar") == nil ? true : defaults.bool(forKey: "coloredMenuBar") }
+        set { defaults.set(newValue, forKey: "coloredMenuBar") }
+    }
+
     var readingColor: String {
+        guard coloredTrayIcon else { return "#FFFFFF" }
         guard let reading = currentReading else { return colorInRange }
         let v = Double(reading.value)
         if v < alertUrgentLowThresholdMgdL  { return colorUrgentLow  }

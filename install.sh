@@ -19,8 +19,17 @@ OS="$(uname)"
 # Linux install — compile from source
 # ══════════════════════════════════════════════════════════════════════════════
 if [[ "$OS" == "Linux" ]]; then
-  LINUX_INSTALL_DIR="/usr/local/bin"
-  DESKTOP_DIR="/usr/share/applications"
+  # Default to user-local install (no sudo needed, writable without root).
+  # Pass --system to install to /usr/local/bin instead.
+  if [[ "${1:-}" == "--system" ]]; then
+    LINUX_INSTALL_DIR="/usr/local/bin"
+    DESKTOP_DIR="/usr/share/applications"
+    NEED_SUDO=true
+  else
+    LINUX_INSTALL_DIR="${HOME}/.local/bin"
+    DESKTOP_DIR="${HOME}/.local/share/applications"
+    NEED_SUDO=false
+  fi
 
   info "DexBar Linux — building from source"
 
@@ -60,33 +69,56 @@ if [[ "$OS" == "Linux" ]]; then
   BINARY="${SCRIPT_DIR}/.build/release/DexBarLinux"
   [[ -f "$BINARY" ]] \
     || die "Binary not found at: $BINARY\nCheck build output above for errors."
+  mkdir -p "$LINUX_INSTALL_DIR"
   info "Installing binary to ${LINUX_INSTALL_DIR}/dexbar…"
-  if [[ -w "$LINUX_INSTALL_DIR" ]]; then
-    cp "$BINARY" "${LINUX_INSTALL_DIR}/dexbar" \
-      || die "Install failed."
-  else
+  if [[ "$NEED_SUDO" == true ]]; then
     sudo cp "$BINARY" "${LINUX_INSTALL_DIR}/dexbar" \
       || die "Install failed. Check permissions."
+  else
+    cp "$BINARY" "${LINUX_INSTALL_DIR}/dexbar" \
+      || die "Install failed."
   fi
   success "Binary installed"
 
+  # ── install icon ─────────────────────────────────────────────────────────────
+  info "Installing app icon…"
+  mkdir -p "${HOME}/.local/share/dexbar"
+  # When installed from a release tarball, icon.png is next to this script.
+  # When building from source, fall back to the asset in the repo.
+  if [[ -f "$SCRIPT_DIR/icon.png" ]]; then
+    cp "$SCRIPT_DIR/icon.png" "${HOME}/.local/share/dexbar/icon.png"
+  elif [[ -f "$SCRIPT_DIR/DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png" ]]; then
+    cp "$SCRIPT_DIR/DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png" \
+       "${HOME}/.local/share/dexbar/icon.png"
+  fi
+  success "Icon installed"
+
   # ── install .desktop file ────────────────────────────────────────────────────
+  mkdir -p "$DESKTOP_DIR"
   DESKTOP_FILE="${DESKTOP_DIR}/dexbar.desktop"
   DESKTOP_CONTENT="[Desktop Entry]
 Type=Application
 Name=DexBar
 Comment=Dexcom glucose readings in your system tray
 Exec=${LINUX_INSTALL_DIR}/dexbar
-Icon=dialog-information
+Icon=${HOME}/.local/share/dexbar/icon.png
 Categories=Utility;
 StartupNotify=false"
   info "Installing .desktop file…"
-  if [[ -w "$DESKTOP_DIR" ]]; then
-    echo "$DESKTOP_CONTENT" > "$DESKTOP_FILE"
-  else
+  if [[ "$NEED_SUDO" == true ]]; then
     echo "$DESKTOP_CONTENT" | sudo tee "$DESKTOP_FILE" >/dev/null
+  else
+    echo "$DESKTOP_CONTENT" > "$DESKTOP_FILE"
   fi
   success ".desktop file installed"
+
+  # ── PATH reminder ────────────────────────────────────────────────────────────
+  if [[ "$NEED_SUDO" != true ]] && [[ ":$PATH:" != *":${LINUX_INSTALL_DIR}:"* ]]; then
+    warn "${LINUX_INSTALL_DIR} is not in your PATH."
+    echo -e "  Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
+    echo -e "    ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
+    echo ""
+  fi
 
   # ── done ─────────────────────────────────────────────────────────────────────
   success "DexBar installed to ${LINUX_INSTALL_DIR}/dexbar"

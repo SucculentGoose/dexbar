@@ -18,6 +18,7 @@ final class SettingsWindow {
     // Display tab
     private var unitCombo: GWidget?
     private var refreshCombo: GWidget?
+    private var coloredTrayCheck: GWidget?
     private var autoStartCheck: GWidget?
 
     // Alerts tab
@@ -57,6 +58,7 @@ final class SettingsWindow {
     private func buildWindow() {
         window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
         gtk_window_set_title(asWindow(window), "DexBar Settings")
+        gtkSetAppIcon(window)
         gtk_window_set_default_size(asWindow(window), 380, 440)
         gtk_window_set_resizable(asWindow(window), 0)
 
@@ -156,6 +158,12 @@ final class SettingsWindow {
         gtk_toggle_button_set_active(asToggle(autoStartCheck), AutoStart.isEnabled ? 1 : 0)
         gtkConnect(autoStartCheck, signal: "toggled") { [weak self] in self?.handleAutoStartToggle() }
         gtk_grid_attach(asGrid(grid), autoStartCheck, 1, row, 1, 1)
+        row += 1
+
+        attachLabel(grid, "Colored Tray Icon", col: 0, row: row)
+        coloredTrayCheck = gtk_check_button_new()
+        gtkConnect(coloredTrayCheck, signal: "toggled") { [weak self] in self?.saveDisplaySettings() }
+        gtk_grid_attach(asGrid(grid), coloredTrayCheck, 1, row, 1, 1)
 
         return grid
     }
@@ -202,15 +210,20 @@ final class SettingsWindow {
 
     private func buildAboutTab() -> GWidget? {
         let vbox = gtkBox(orientation: GTK_ORIENTATION_VERTICAL, spacing: 8)
+        setMargins(vbox, 16)
         gtk_widget_set_halign(vbox, GTK_ALIGN_CENTER)
         gtk_widget_set_valign(vbox, GTK_ALIGN_CENTER)
 
         packStart(vbox, gtkLabel("DexBar"))
-        packStart(vbox, gtkLabel("Linux Edition"))
+        packStart(vbox, gtkLabel("Linux Edition · v\(AppVersion.current)"))
 
         let desc = gtkLabel("Blood glucose readings from\nDexcom Share in your system tray.")
         gtk_label_set_justify(asLabel(desc), GTK_JUSTIFY_CENTER)
         packStart(vbox, desc)
+
+        let link = gtk_link_button_new_with_label(
+            "https://github.com/SucculentGoose/dexbar", "View on GitHub")!
+        packStart(vbox, link)
 
         let disclaimer = gtkLabel("⚠️ Not a medical device.\nAlways verify readings with your CGM.")
         gtk_label_set_justify(asLabel(disclaimer), GTK_JUSTIFY_CENTER)
@@ -258,6 +271,16 @@ final class SettingsWindow {
         if let username = defaults.string(forKey: "dexcomUsername") {
             gtk_entry_set_text(asEntry(usernameEntry), username)
         }
+        // Don't populate the password field with the real value — just show a placeholder
+        // so the user knows a password is saved without exposing it.
+#if canImport(CLibSecret)
+        let hasSavedPassword = SecretServiceStorage.load(key: "password") != nil
+#else
+        let hasSavedPassword = defaults.string(forKey: "dexcomPasswordFallback") != nil
+#endif
+        if hasSavedPassword {
+            gtk_entry_set_placeholder_text(asEntry(passwordEntry), "●●●●●●●● (saved)")
+        }
         let regionIdx = DexcomRegion.allCases.firstIndex(of: monitor.region).map { gint($0) } ?? 0
         gtk_combo_box_set_active(asCombo(regionCombo), regionIdx)
 
@@ -266,6 +289,8 @@ final class SettingsWindow {
 
         let refreshIdx = refreshIntervalOptions.firstIndex(where: { $0.1 == monitor.refreshInterval }).map { gint($0) } ?? 2
         gtk_combo_box_set_active(asCombo(refreshCombo), refreshIdx)
+
+        gtk_toggle_button_set_active(asToggle(coloredTrayCheck), monitor.coloredTrayIcon ? 1 : 0)
 
         gtk_toggle_button_set_active(asToggle(urgentHighCheck), monitor.alertUrgentHighEnabled ? 1 : 0)
         gtk_spin_button_set_value(asSpin(urgentHighSpin), monitor.alertUrgentHighThresholdMgdL)
@@ -285,11 +310,31 @@ final class SettingsWindow {
     private func handleConnect() {
         guard let monitor else { return }
         let username = String(cString: gtk_entry_get_text(asEntry(usernameEntry)!))
-        let password = String(cString: gtk_entry_get_text(asEntry(passwordEntry)!))
+        let typedPassword = String(cString: gtk_entry_get_text(asEntry(passwordEntry)!))
         let regionIdx = gtk_combo_box_get_active(asCombo(regionCombo))
         let region = DexcomRegion.allCases[max(0, Int(regionIdx))]
 
-        guard !username.isEmpty, !password.isEmpty else {
+        // If the field is empty, fall back to whatever is already saved in the keyring
+        let password: String
+        if !typedPassword.isEmpty {
+            password = typedPassword
+        } else {
+#if canImport(CLibSecret)
+            guard let saved = SecretServiceStorage.load(key: "password"), !saved.isEmpty else {
+                gtk_label_set_text(asLabel(connectionStatusLabel), "Enter username and password")
+                return
+            }
+            password = saved
+#else
+            guard let saved = UserDefaults.standard.string(forKey: "dexcomPasswordFallback"), !saved.isEmpty else {
+                gtk_label_set_text(asLabel(connectionStatusLabel), "Enter username and password")
+                return
+            }
+            password = saved
+#endif
+        }
+
+        guard !username.isEmpty else {
             gtk_label_set_text(asLabel(connectionStatusLabel), "Enter username and password")
             return
         }
@@ -297,11 +342,13 @@ final class SettingsWindow {
         UserDefaults.standard.set(username, forKey: "dexcomUsername")
         monitor.region = region
 
+        if !typedPassword.isEmpty {
 #if canImport(CLibSecret)
-        _ = SecretServiceStorage.save(key: "password", value: password)
+            _ = SecretServiceStorage.save(key: "password", value: password)
 #else
-        UserDefaults.standard.set(password, forKey: "dexcomPasswordFallback")
+            UserDefaults.standard.set(password, forKey: "dexcomPasswordFallback")
 #endif
+        }
 
         Task { @MainActor in
             await monitor.start(username: username, password: password, region: region)
@@ -315,6 +362,8 @@ final class SettingsWindow {
         if unitIdx >= 0 { monitor.unit = GlucoseUnit.allCases[Int(unitIdx)] }
         let refreshIdx = gtk_combo_box_get_active(asCombo(refreshCombo))
         if refreshIdx >= 0 { monitor.updateRefreshInterval(refreshIntervalOptions[Int(refreshIdx)].1) }
+        monitor.coloredTrayIcon = gtk_toggle_button_get_active(asToggle(coloredTrayCheck)) != 0
+        monitor.onUpdate?()
     }
 
     private func saveAlertSettings() {
