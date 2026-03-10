@@ -256,7 +256,15 @@ final class GlucoseMonitorLinux {
         nextRefreshDate = fireDate
         timer = Timer(fire: fireDate, interval: 0, repeats: false) { [weak self] _ in
             guard let self else { return }
-            Task { @MainActor in await self.refresh() }
+            Task { @MainActor in
+                // If we're firing much later than expected, the system likely woke from sleep.
+                // Give the network a few seconds to reconnect before refreshing.
+                if let expected = self.nextRefreshDate,
+                   Date().timeIntervalSince(expected) > 30 {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                }
+                await self.refresh()
+            }
         }
         RunLoop.main.add(timer!, forMode: .default)
     }
@@ -280,7 +288,7 @@ final class GlucoseMonitorLinux {
             evaluateStaleAlert(reading: reading)
             saveReadings()
             scheduleTimer(after: reading.date)
-        } catch DexcomError.sessionExpired {
+        } catch DexcomError.sessionExpired, DexcomError.invalidCredentials {
             await reAuthenticateIfPossible()
         } catch DexcomError.serverError(let code) where code == 429 {
             state = .error("Rate limited by Dexcom — will retry soon")

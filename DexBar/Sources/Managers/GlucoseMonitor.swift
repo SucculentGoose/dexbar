@@ -264,7 +264,7 @@ final class GlucoseMonitor {
             await evaluateStaleAlert(reading: reading)
             saveReadings()
             scheduleTimer(after: reading.date)
-        } catch DexcomError.sessionExpired {
+        } catch DexcomError.sessionExpired, DexcomError.invalidCredentials {
             await reAuthenticateIfPossible()
         } catch DexcomError.serverError(let code) where code == 429 {
             state = .error("Rate limited by Dexcom — will retry soon")
@@ -276,6 +276,8 @@ final class GlucoseMonitor {
     }
 
     private func handleSystemWake() async {
+        // Wait briefly for the network to reconnect before attempting a refresh.
+        try? await Task.sleep(for: .seconds(3))
         guard service != nil else {
             await autoConnectIfNeeded()
             return

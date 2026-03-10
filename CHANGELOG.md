@@ -15,10 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linux credential storage** — passwords stored in the system keyring via libsecret (falls back to UserDefaults if unavailable)
 - **Linux notifications** — glucose alerts delivered via libnotify
 - **Linux autostart** — optional launch-at-login via a systemd user service or XDG autostart entry
+- **Linux auto-update** — checks for new versions on launch and daily; prompts to install in-place with a single click
 - Colored Tray Icon toggle (Settings → Display) to enable or disable range-based text coloring; takes effect immediately
 
 ### Changed
 - Shared networking and model code extracted into a `DexBarCore` Swift package library used by both the macOS and Linux apps
+
+## [1.4.3] - 2026-03-10
+
+### Fixed
+- App now re-authenticates automatically when the Dexcom session expires after an extended sleep, instead of looping in an error state until manually refreshed
+- Added a brief delay on system wake before attempting a refresh, giving macOS and Linux time to reconnect to the network
 
 ## [1.4.2] - 2026-03-09
 
