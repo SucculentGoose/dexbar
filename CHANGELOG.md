@@ -5,6 +5,12 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-03-10
+
+### Fixed
+- App now re-authenticates automatically when the Dexcom session expires after an extended sleep, instead of looping in an error state until manually refreshed
+- Added a brief delay on system wake before attempting a refresh, giving macOS time to reconnect to the network
+
 ## [1.4.2] - 2026-03-09
 
 ### Added
