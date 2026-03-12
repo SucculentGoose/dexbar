@@ -72,8 +72,8 @@ final class TrayIcon {
 
     // MARK: - Private
 
-    /// Writes a 22×22 SVG icon with glucose value + trend arrow on one line (colored by range),
-    /// and delta (e.g. "+3") on the line below in the same color.
+    /// Writes a 22×22 SVG icon with glucose value, a crisp SVG-path trend
+    /// arrow, and delta on the line below.
     private func setIconReading(_ value: String, arrow: String, delta: String?, color: String) {
         iconCounter += 1
         let iconName = "dexbar-\(iconCounter)"
@@ -94,21 +94,25 @@ final class TrayIcon {
             </svg>
             """
         } else if let delta, !delta.isEmpty {
-            // Full display: value+arrow on top line, delta on bottom line
+            // Full display: value on top, arrow to the right, delta below
+            let arrowSVG = tinyArrowPath(for: arrow, color: color, x: 19, y: 3)
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <text x="11" y="12" font-family="sans-serif" font-size="\(valueFontSize)"
-                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)\(arrow)</text>
+              <text x="9" y="12" font-family="sans-serif" font-size="\(valueFontSize)"
+                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)</text>
+              \(arrowSVG)
               <text x="11" y="21" font-family="sans-serif" font-size="8"
-                    fill="\(color)" text-anchor="middle">\(delta)</text>
+                    fill="\(color)" fill-opacity="0.8" text-anchor="middle">\(delta)</text>
             </svg>
             """
         } else {
-            // No delta yet (only one reading): single centered line
+            // No delta yet: centered value with arrow
+            let arrowSVG = tinyArrowPath(for: arrow, color: color, x: 19, y: 6)
             svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-              <text x="11" y="15" font-family="sans-serif" font-size="\(valueFontSize)"
-                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)\(arrow)</text>
+              <text x="9" y="15" font-family="sans-serif" font-size="\(valueFontSize)"
+                    font-weight="bold" fill="\(color)" text-anchor="middle">\(value)</text>
+              \(arrowSVG)
             </svg>
             """
         }
@@ -119,6 +123,28 @@ final class TrayIcon {
         if iconCounter > 1 {
             let oldFile = iconDir.appendingPathComponent("dexbar-\(iconCounter - 1).svg")
             try? FileManager.default.removeItem(at: oldFile)
+        }
+    }
+
+    /// Tiny SVG path arrow fitting in ~5×7 pixels, positioned at (x, y).
+    private func tinyArrowPath(for arrow: String, color: String, x: Int, y: Int) -> String {
+        switch arrow {
+        case "⇈":
+            return "<g transform=\"translate(\(x-3),\(y))\" fill=\"\(color)\"><polygon points=\"3,0 0,4 2,4 2,7 4,7 4,4 6,4\"/><polygon points=\"3,3 0,7 2,7 2,10 4,10 4,7 6,7\" opacity=\"0.5\"/></g>"
+        case "↑":
+            return "<polygon points=\"\(x),\(y) \(x-3),\(y+5) \(x-1),\(y+5) \(x-1),\(y+9) \(x+1),\(y+9) \(x+1),\(y+5) \(x+3),\(y+5)\" fill=\"\(color)\"/>"
+        case "↗":
+            return "<polygon points=\"\(x+3),\(y) \(x-2),\(y) \(x-0),\(y+2) \(x-3),\(y+5) \(x-1),\(y+7) \(x+2),\(y+4) \(x+3),\(y+5)\" fill=\"\(color)\"/>"
+        case "→":
+            return "<polygon points=\"\(x+3),\(y+4) \(x-1),\(y+1) \(x-1),\(y+3) \(x-4),\(y+3) \(x-4),\(y+5) \(x-1),\(y+5) \(x-1),\(y+7)\" fill=\"\(color)\"/>"
+        case "↘":
+            return "<polygon points=\"\(x+3),\(y+7) \(x-2),\(y+7) \(x-0),\(y+5) \(x-3),\(y+2) \(x-1),\(y) \(x+2),\(y+3) \(x+3),\(y+2)\" fill=\"\(color)\"/>"
+        case "↓":
+            return "<polygon points=\"\(x),\(y+9) \(x-3),\(y+4) \(x-1),\(y+4) \(x-1),\(y) \(x+1),\(y) \(x+1),\(y+4) \(x+3),\(y+4)\" fill=\"\(color)\"/>"
+        case "⇊":
+            return "<g transform=\"translate(\(x-3),\(y))\" fill=\"\(color)\"><polygon points=\"3,10 0,6 2,6 2,3 4,3 4,6 6,6\"/><polygon points=\"3,7 0,3 2,3 2,0 4,0 4,3 6,3\" opacity=\"0.5\"/></g>"
+        default:
+            return ""
         }
     }
 
