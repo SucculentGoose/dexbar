@@ -5,21 +5,22 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-03-09
+## [1.5.0] - 2026-03-12
 
-### Added
+### Added (Linux)
 - **Linux support** — new `dexbar` app for Linux desktops using GTK3 and the StatusNotifierItem (SNI) tray protocol; tested on KDE Plasma 6
-- **Linux tray icon** — system tray icon displays the current glucose value, trend arrow, and delta (e.g. `115→ / +3`) as an SVG; text is colored by glucose range (urgent low / low / in range / high / urgent high)
-- **Linux status overlay** — optional always-on-top floating window showing the current reading in large colored text; toggled via the tray menu
-- **Linux settings window** — tabbed GTK3 settings UI covering Account, Display, Alerts, and About; includes Colored Tray Icon toggle, unit selection, refresh interval, and launch-at-login
-- **Linux credential storage** — passwords stored in the system keyring via libsecret (falls back to UserDefaults if unavailable)
-- **Linux notifications** — glucose alerts delivered via libnotify
-- **Linux autostart** — optional launch-at-login via a systemd user service or XDG autostart entry
-- **Linux auto-update** — checks for new versions on launch and daily; prompts to install in-place with a single click
-- Colored Tray Icon toggle (Settings → Display) to enable or disable range-based text coloring; takes effect immediately
+- **Linux status popup** — "Show Status" in the tray menu opens a full popup matching the macOS style: large colored glucose value with status badge and timestamps, glucose chart with 3h/6h/12h/24h range selector (Cairo-drawn), Time in Range stacked bar with 2d/7d/14d/30d/90d range selector, GMI with data-span warning, and Refresh / Check for Updates / Settings / Quit action buttons
+- **Linux tray icon** — displays current glucose value, SVG path trend arrow, and delta; colored by glucose range
+- **Linux settings window** — tabbed GTK3 UI (Account, Display, Alerts, About); Colored Tray Icon toggle, unit, refresh interval, launch-at-login; password field shows a placeholder when a saved password exists
+- **Linux credential storage** — passwords stored in the system keyring via libsecret (falls back to UserDefaults); no need to re-enter credentials between restarts
+- **Linux notifications** — glucose alerts via libnotify
+- **Linux autostart** — launch-at-login via systemd user service or XDG autostart entry
+- **Linux auto-update** — checks on launch and daily; one-click in-place install from the tray menu; binary replaced atomically and process restarts automatically
+- **Linux wake-from-sleep recovery** — re-authenticates after sleep with up to three retries (3 s, 5 s, 10 s) to allow the network to reconnect before showing an error
 
 ### Changed
 - Shared networking and model code extracted into a `DexBarCore` Swift package library used by both the macOS and Linux apps
+- Linux default install location is `~/.local/bin` (no sudo required); pass `--system` to `install.sh` for `/usr/local/bin`
 
 ## [1.4.3] - 2026-03-10
 
