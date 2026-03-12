@@ -1,11 +1,14 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
-enum DexcomRegion: String, CaseIterable, Codable {
+public enum DexcomRegion: String, CaseIterable, Codable, Sendable {
     case us = "US"
     case ous = "Outside US"
     case jp = "Japan"
 
-    var baseURL: String {
+    public var baseURL: String {
         switch self {
         case .us: "https://share2.dexcom.com/ShareWebServices/Services"
         case .ous: "https://shareous1.dexcom.com/ShareWebServices/Services"
@@ -14,7 +17,7 @@ enum DexcomRegion: String, CaseIterable, Codable {
     }
 }
 
-enum DexcomError: LocalizedError {
+public enum DexcomError: LocalizedError, Sendable {
     case invalidCredentials
     case sessionExpired
     case noReadings
@@ -22,7 +25,7 @@ enum DexcomError: LocalizedError {
     case serverError(Int)
     case decodingError(Error)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidCredentials: "Invalid Dexcom credentials."
         case .sessionExpired: "Session expired. Please reconnect."
@@ -34,28 +37,28 @@ enum DexcomError: LocalizedError {
     }
 }
 
-actor DexcomService {
+public actor DexcomService {
     private let region: DexcomRegion
     private var sessionID: String?
 
-    init(region: DexcomRegion) {
+    public init(region: DexcomRegion) {
         self.region = region
     }
 
     // MARK: - Public API
 
-    func authenticate(username: String, password: String) async throws {
+    public func authenticate(username: String, password: String) async throws {
         let accountID = try await fetchAccountID(username: username, password: password)
         let session = try await fetchSessionID(accountID: accountID, password: password)
         self.sessionID = session
     }
 
-    func getLatestReadings(maxCount: Int = 2) async throws -> [GlucoseReading] {
+    public func getLatestReadings(maxCount: Int = 2) async throws -> [GlucoseReading] {
         guard let session = sessionID else { throw DexcomError.sessionExpired }
         return try await fetchReadings(sessionID: session, maxCount: maxCount)
     }
 
-    func clearSession() {
+    public func clearSession() {
         sessionID = nil
     }
 

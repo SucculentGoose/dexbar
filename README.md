@@ -2,9 +2,10 @@
 
 # DexBar
 
-A native macOS menu bar app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API.
+A native menu bar / system tray app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API. Available for **macOS** and **Linux**.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)
+![Linux](https://img.shields.io/badge/Linux-GTK3-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 
 ## Features
@@ -110,22 +111,95 @@ API endpoints used:
 ## Project structure
 
 ```
-DexBar/
+dexbar/
 ├── Sources/
-│   ├── DexBarApp.swift               # App entry point, MenuBarExtra
-│   ├── Models/
-│   │   └── GlucoseReading.swift      # Data model, trend enum, unit conversion
-│   ├── Services/
-│   │   ├── DexcomService.swift       # Dexcom Share API client (async/await)
-│   │   └── KeychainService.swift     # Secure credential storage
-│   ├── Managers/
-│   │   ├── GlucoseMonitor.swift      # Polling loop, alert evaluation
-│   │   └── NotificationManager.swift # macOS notification delivery
-│   └── Views/
-│       ├── MenuBarView.swift         # Popover UI
-│       └── SettingsView.swift        # Settings window
-└── Assets.xcassets/
+│   └── DexBarCore/                   # Shared library (macOS + Linux)
+│       ├── Models/
+│       │   └── GlucoseReading.swift  # Data model, trend enum, unit conversion
+│       ├── Services/
+│       │   └── DexcomService.swift   # Dexcom Share API client (async/await)
+│       └── Shared/
+│           └── CoreTypes.swift       # MonitorState, TiRStats, TimeRange enums
+├── DexBar/                           # macOS app
+│   └── Sources/
+│       ├── DexBarApp.swift           # App entry point, MenuBarExtra
+│       ├── Services/
+│       │   └── KeychainService.swift # Secure credential storage (Keychain)
+│       ├── Managers/
+│       │   ├── GlucoseMonitor.swift  # Polling loop, alert evaluation
+│       │   └── NotificationManager.swift  # macOS notification delivery
+│       └── Views/
+│           ├── MenuBarView.swift     # Popover UI
+│           ├── SettingsView.swift    # Settings window
+│           └── GlucoseChartView.swift
+└── DexBarLinux/                      # Linux app
+    └── Sources/
+        ├── main.swift                # Entry point (GTK3 main loop)
+        ├── Managers/
+        │   ├── GlucoseMonitorLinux.swift  # Polling loop, alert evaluation
+        │   └── LinuxNotificationManager.swift  # libnotify notifications
+        ├── Services/
+        │   └── SecretServiceStorage.swift  # KDE Wallet / GNOME Keyring
+        └── Views/
+            ├── TrayIcon.swift        # libayatana-appindicator3 tray icon
+            ├── PopupWindow.swift     # GTK3 status popup
+            ├── SettingsWindow.swift  # GTK3 settings window
+            └── AutoStart.swift      # ~/.config/autostart/ management
 ```
+
+---
+
+## Linux
+
+DexBar also runs on Linux as a system tray application. It is tested on **KDE Plasma 6** but works on any desktop environment that supports the StatusNotifierItem protocol (GNOME with AppIndicator extension, XFCE, etc.).
+
+### Linux Requirements
+
+- Swift 6.0+ — [swift.org/download](https://swift.org/download)
+- GTK3: `libgtk-3-dev`
+- System tray: `libayatana-appindicator3-dev`
+- Credential storage: `libsecret-1-dev`
+- Desktop notifications: `libnotify-dev`
+
+### Linux Installation
+
+```bash
+# 1. Install system dependencies (Debian/Ubuntu/KDE Neon)
+sudo apt install libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev libnotify-dev
+
+# 2. Clone and build
+git clone https://github.com/SucculentGoose/dexbar
+cd dexbar
+swift build -c release --product DexBarLinux
+
+# 3. Install (user-local, no sudo needed)
+mkdir -p ~/.local/bin
+cp .build/release/DexBarLinux ~/.local/bin/dexbar
+```
+
+Or use the install script which does all of the above:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SucculentGoose/dexbar/main/install.sh | bash
+```
+
+### Linux First Run
+
+```bash
+dexbar &
+```
+
+A tray icon appears in your system tray. Click it to open the menu, then choose **Show Status** to open the glucose popup or **Open Settings** to configure the app. In Settings → **Account**, enter your Dexcom credentials, choose your region, and click **Connect**.
+
+Credentials are stored securely in KDE Wallet (or GNOME Keyring) via the Secret Service D-Bus API. On first run KDE Wallet may prompt you to create a wallet or unlock an existing one.
+
+### Linux Features
+
+- **Status popup** — macOS-style popup with a live glucose chart (3h/6h/12h/24h), Time in Range bar (2d–90d), GMI, and real-time countdown to the next reading
+- **Auto-update** — checks for updates on launch and daily; one-click install from the tray menu
+- **Credential storage** — passwords stored securely via the Secret Service D-Bus API (KDE Wallet / GNOME Keyring)
+
+
 
 ## License
 

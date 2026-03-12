@@ -14,6 +14,8 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
+    outputs:
+      app_version: ${{ steps.read_version.outputs.app_version }}
 
     steps:
       - name: Checkout
@@ -22,7 +24,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Read version
-        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+        id: read_version
+        run: |
+          echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+          echo "app_version=$(cat VERSION)" >> $GITHUB_OUTPUT
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -154,11 +159,14 @@ jobs:
           notes = match.group(1).strip() if match else "See CHANGELOG.md for details."
           footer = """
           ---
-          ### Installation
+          ### macOS Installation
           1. Download **DexBar-v{version}.zip** below and unzip it
           2. Drag **DexBar.app** to your `/Applications` folder
           3. **First launch:** run `xattr -cr /Applications/DexBar.app` in Terminal if macOS blocks it
           4. Click the menu bar icon → **Settings** → enter your Dexcom credentials
+
+          ### Linux Installation
+          Download **dexbar-linux-x86_64-v{version}.tar.gz** below, extract it, and run `./install.sh`
           """.format(version=open("VERSION").read().strip())
           with open("release_notes.md", "w") as f:
               f.write(notes + "\n" + footer)
@@ -171,4 +179,102 @@ jobs:
           name: DexBar v${{ env.APP_VERSION }}
           body_path: release_notes.md
           files: DexBar-v${{ env.APP_VERSION }}.zip
+
+  build-linux:
+    name: Build Linux Binary
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version
+        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Install GTK dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            libsecret-1-dev \
+            libnotify-dev
+
+      - name: Stamp version into AppVersion.swift
+        run: |
+          sed -i "s/static let current = \".*\"/static let current = \"${{ env.APP_VERSION }}\"/" \
+            DexBarLinux/Sources/AppVersion.swift
+
+      - name: Build Linux binary
+        run: swift build -c release --product DexBarLinux
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp .build/release/DexBarLinux dist/dexbar
+          cp install.sh dist/
+          cp DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png dist/icon.png
+          cd dist
+          tar czf ../dexbar-linux-x86_64-v${{ env.APP_VERSION }}.tar.gz dexbar install.sh icon.png
+
+      - name: Upload Linux binary to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          files: dexbar-linux-x86_64-v${{ env.APP_VERSION }}.tar.gz
+
+      - name: Update appcast-linux.xml
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          python3 - <<'EOF'
+          import os, subprocess
+          from datetime import datetime, timezone
+
+          version  = os.environ["APP_VERSION"]
+          pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+          dl_url   = f"https://github.com/SucculentGoose/dexbar/releases/download/v{version}/dexbar-linux-x86_64-v{version}.tar.gz"
+          size     = os.path.getsize(f"dexbar-linux-x86_64-v{version}.tar.gz")
+
+          item = (
+              "        <item>\n"
+              f"            <title>DexBar Linux {version}</title>\n"
+              f"            <pubDate>{pub_date}</pubDate>\n"
+              f"            <sparkle:version>{version}</sparkle:version>\n"
+              f"            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>\n"
+              "            <enclosure\n"
+              f'                url="{dl_url}"\n'
+              f'                length="{size}"\n'
+              '                type="application/octet-stream"\n'
+              "            />\n"
+              "        </item>"
+          )
+
+          placeholder = "        <!-- Linux releases are added here automatically by the GitHub Actions release workflow -->"
+          with open("appcast-linux.xml", "r") as f:
+              content = f.read()
+          content = content.replace(placeholder, item + "\n" + placeholder)
+          with open("appcast-linux.xml", "w") as f:
+              f.write(content)
+          EOF
+
+      - name: Commit updated appcast-linux.xml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
+          git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
+          git push origin HEAD:main
 

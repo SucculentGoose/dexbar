@@ -1,7 +1,7 @@
 import Foundation
 
 // Trend values matching Dexcom Share API integers
-enum GlucoseTrend: Int, Codable, Sendable {
+public enum GlucoseTrend: Int, Codable, Sendable {
     case none = 0
     case doubleUp = 1
     case singleUp = 2
@@ -13,7 +13,7 @@ enum GlucoseTrend: Int, Codable, Sendable {
     case notComputable = 8
     case rateOutOfRange = 9
 
-    var arrow: String {
+    public var arrow: String {
         switch self {
         case .doubleUp: "⇈"
         case .singleUp: "↑"
@@ -26,7 +26,7 @@ enum GlucoseTrend: Int, Codable, Sendable {
         }
     }
 
-    var description: String {
+    public var description: String {
         switch self {
         case .doubleUp: "rising quickly"
         case .singleUp: "rising"
@@ -41,19 +41,19 @@ enum GlucoseTrend: Int, Codable, Sendable {
         }
     }
 
-    var isRisingFast: Bool { self == .doubleUp || self == .singleUp }
-    var isDroppingFast: Bool { self == .doubleDown || self == .singleDown }
+    public var isRisingFast: Bool { self == .doubleUp || self == .singleUp }
+    public var isDroppingFast: Bool { self == .doubleDown || self == .singleDown }
 }
 
-struct GlucoseReading: Identifiable, Codable, Sendable {
-    let id: UUID
-    let value: Int          // always stored as mg/dL
-    let trend: GlucoseTrend
-    let date: Date
+public struct GlucoseReading: Identifiable, Codable, Sendable {
+    public let id: UUID
+    public let value: Int          // always stored as mg/dL
+    public let trend: GlucoseTrend
+    public let date: Date
     /// Rate of change in mg/dL per minute, as provided by the Dexcom API.
-    let trendRate: Double?
+    public let trendRate: Double?
 
-    init(value: Int, trend: GlucoseTrend, date: Date, trendRate: Double?) {
+    public init(value: Int, trend: GlucoseTrend, date: Date, trendRate: Double?) {
         self.id = UUID()
         self.value = value
         self.trend = trend
@@ -62,8 +62,8 @@ struct GlucoseReading: Identifiable, Codable, Sendable {
     }
 
     // Exclude `id` from disk storage — regenerate on decode
-    enum CodingKeys: String, CodingKey { case value, trend, date, trendRate }
-    init(from decoder: Decoder) throws {
+    public enum CodingKeys: String, CodingKey { case value, trend, date, trendRate }
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id        = UUID()
         value     = try c.decode(Int.self,          forKey: .value)
@@ -72,28 +72,35 @@ struct GlucoseReading: Identifiable, Codable, Sendable {
         trendRate = try c.decodeIfPresent(Double.self, forKey: .trendRate)
     }
 
-    var mmolL: Double { Double(value) / 18.0 }
+    public var mmolL: Double { Double(value) / 18.0 }
 
-    func displayValue(unit: GlucoseUnit) -> String {
+    public func displayValue(unit: GlucoseUnit) -> String {
         switch unit {
         case .mgdL: "\(value)"
         case .mmolL: String(format: "%.1f", mmolL)
         }
     }
 
-    func menuBarLabel(unit: GlucoseUnit) -> String {
+    public func menuBarLabel(unit: GlucoseUnit) -> String {
         "\(displayValue(unit: unit)) \(trend.arrow)"
     }
 }
 
 // Raw Dexcom API response shape
-struct DexcomRawReading: Decodable {
-    let wt: String   // "Date(1234567890000)"
-    let value: Int
-    let trend: String
-    let trendRate: Double?
+public struct DexcomRawReading: Decodable {
+    public let wt: String   // "Date(1234567890000)"
+    public let value: Int
+    public let trend: String
+    public let trendRate: Double?
 
-    enum CodingKeys: String, CodingKey {
+    public init(wt: String, value: Int, trend: String, trendRate: Double?) {
+        self.wt = wt
+        self.value = value
+        self.trend = trend
+        self.trendRate = trendRate
+    }
+
+    public enum CodingKeys: String, CodingKey {
         case wt = "WT"
         case value = "Value"
         case trend = "Trend"
@@ -113,7 +120,7 @@ struct DexcomRawReading: Decodable {
         "RateOutOfRange": .rateOutOfRange,
     ]
 
-    func toGlucoseReading() -> GlucoseReading? {
+    public func toGlucoseReading() -> GlucoseReading? {
         // WT format: "Date(1234567890000)"
         guard let open = wt.firstIndex(of: "("),
               let close = wt.firstIndex(of: ")") else { return nil }
@@ -125,7 +132,7 @@ struct DexcomRawReading: Decodable {
     }
 }
 
-enum GlucoseUnit: String, CaseIterable, Codable {
+public enum GlucoseUnit: String, CaseIterable, Codable, Sendable {
     case mgdL = "mg/dL"
     case mmolL = "mmol/L"
 }

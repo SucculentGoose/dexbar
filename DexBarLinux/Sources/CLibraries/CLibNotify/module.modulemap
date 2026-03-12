@@ -1,0 +1,5 @@
+module CLibNotify [system] {
+    header "/usr/include/libnotify/notify.h"
+    link "notify"
+    export *
+}
