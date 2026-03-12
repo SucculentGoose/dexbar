@@ -36,8 +36,7 @@ MainActor.assumeIsolated {
     let tray = TrayIcon(
         monitor: monitor,
         onTogglePopup: { popup.toggle() },
-        onOpenSettings: { settings.show() },
-        onToggleOverlay: { overlay.toggle() }
+        onOpenSettings: { settings.show() }
     )
 
     monitor.onUpdate = {

@@ -65,7 +65,7 @@ final class PopupWindow {
 
     func update() {
         guard let monitor else { return }
-        guard let win = window, gtk_widget_is_visible(win) != 0 else { return }
+        // Allow update even when hidden so data is ready when toggled open
         updateHeader()
         updateChart()
         updateTiR()

@@ -14,7 +14,6 @@ final class TrayIcon {
     private weak var monitor: GlucoseMonitorLinux?
     private var onTogglePopup: (() -> Void)?
     private var onOpenSettings: (() -> Void)?
-    private var onToggleOverlay: (() -> Void)?
     private var iconCounter = 0
     private var updateMenuItem: GWidget?
     private var updateSepItem: GWidget?
@@ -29,12 +28,10 @@ final class TrayIcon {
 
     init(monitor: GlucoseMonitorLinux,
          onTogglePopup: @escaping () -> Void,
-         onOpenSettings: @escaping () -> Void,
-         onToggleOverlay: @escaping () -> Void) {
+         onOpenSettings: @escaping () -> Void) {
         self.monitor = monitor
         self.onTogglePopup = onTogglePopup
         self.onOpenSettings = onOpenSettings
-        self.onToggleOverlay = onToggleOverlay
 
         indicator = app_indicator_new(
             "com.dexbar.app",
@@ -133,7 +130,6 @@ final class TrayIcon {
         let updateSep    = gtk_separator_menu_item_new()!
         let statusItem   = gtk_menu_item_new_with_label("Show Status")!
         let refreshItem  = gtk_menu_item_new_with_label("Refresh Now")!
-        let overlayItem  = gtk_menu_item_new_with_label("Toggle Status Overlay")!
         let settingsItem = gtk_menu_item_new_with_label("Open Settings")!
         let sepItem      = gtk_separator_menu_item_new()!
         let quitItem     = gtk_menu_item_new_with_label("Quit")!
@@ -142,7 +138,6 @@ final class TrayIcon {
         gtk_menu_shell_append(asMenuShell(menu), updateSep)
         gtk_menu_shell_append(asMenuShell(menu), statusItem)
         gtk_menu_shell_append(asMenuShell(menu), refreshItem)
-        gtk_menu_shell_append(asMenuShell(menu), overlayItem)
         gtk_menu_shell_append(asMenuShell(menu), settingsItem)
         gtk_menu_shell_append(asMenuShell(menu), sepItem)
         gtk_menu_shell_append(asMenuShell(menu), quitItem)
@@ -152,7 +147,6 @@ final class TrayIcon {
             guard let monitor = self?.monitor else { return }
             Task { @MainActor in await monitor.refreshNow() }
         }
-        gtkConnect(overlayItem,  signal: "activate") { [weak self] in self?.onToggleOverlay?() }
         gtkConnect(settingsItem, signal: "activate") { [weak self] in self?.onOpenSettings?() }
         gtkConnect(quitItem,     signal: "activate") { gtk_main_quit() }
 
