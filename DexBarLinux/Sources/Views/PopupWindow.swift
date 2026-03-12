@@ -42,6 +42,7 @@ final class PopupWindow {
     var onCheckUpdates: (() -> Void)?
 
     private static var cssApplied = false
+    private var tickTimerId: guint = 0
 
     init(monitor: GlucoseMonitorLinux) {
         self.monitor = monitor
@@ -58,6 +59,7 @@ final class PopupWindow {
         guard let win = window else { return }
         if gtk_widget_is_visible(win) != 0 {
             gtk_widget_hide(win)
+            stopTick()
         } else {
             update()
             gtk_widget_show_all(win)
@@ -65,6 +67,7 @@ final class PopupWindow {
             updateStaleBar()
             updateSpanWarning()
             gtk_window_present(asWindow(win))
+            startTick()
         }
     }
 
@@ -74,6 +77,27 @@ final class PopupWindow {
         updateHeader()
         updateChart()
         updateTiR()
+    }
+
+    // MARK: - Tick timer (updates countdown every second while visible)
+
+    private func startTick() {
+        guard tickTimerId == 0 else { return }
+        let cb: @convention(c) (gpointer?) -> gboolean = { userData in
+            guard let ptr = userData else { return 0 }
+            let popup = Unmanaged<PopupWindow>.fromOpaque(ptr).takeUnretainedValue()
+            popup.updateHeader()
+            return 1 // continue
+        }
+        let raw = Unmanaged.passUnretained(self).toOpaque()
+        tickTimerId = g_timeout_add(1000, cb, raw)
+    }
+
+    private func stopTick() {
+        if tickTimerId != 0 {
+            g_source_remove(tickTimerId)
+            tickTimerId = 0
+        }
     }
 
     // MARK: - Build Window
