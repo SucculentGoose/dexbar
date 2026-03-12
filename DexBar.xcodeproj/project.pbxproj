@@ -7,10 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		06B83F2E36F83EFBC3310E6D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5879A5DC55764C3A6FA0AD96 /* Sparkle */; };
+		06B83F2E36F83EFBC3310E6D /* DexBarCore in Frameworks */ = {isa = PBXBuildFile; productRef = AB08D74EDB2AE9D265B8A29F /* DexBarCore */; };
 		203C1F97C596E3B9E65C4DEA /* DexBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84C3F78402C8D89086A0D36 /* DexBarApp.swift */; };
-		54576C40F3C9FD96C8841522 /* GlucoseReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76143987BADBB79390FD28A /* GlucoseReading.swift */; };
-		6EB78758C4ADB1438C1D7AF1 /* DexcomService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4FD6003D8EE6421750AC4F /* DexcomService.swift */; };
+		40734081E8569399614B0404 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5879A5DC55764C3A6FA0AD96 /* Sparkle */; };
 		7E626A6DE41DA4C733E4083C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */; };
 		87E1786F0C695A858E1F0D9E /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C508DE716AFAE5E886CD05 /* KeychainService.swift */; };
 		8A7A2BB99EF2AB023B3F13CD /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */; };
@@ -37,7 +36,6 @@
 		1A465B78ACA9EC0B75A3D2AF /* DexBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexBarTests.swift; sourceTree = "<group>"; };
 		4F4FC70EA62672F320D31940 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		59A8EA3DEBC5E2873BE370D8 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
-		5B4FD6003D8EE6421750AC4F /* DexcomService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexcomService.swift; sourceTree = "<group>"; };
 		5DB82C51AEECA006305C528B /* DexBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DexBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		686A747229A9DE5C7E28DFC7 /* DexBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DexBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		90C9A9B653B4DF930EFD90DE /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -45,7 +43,7 @@
 		BB6B960D0988B55727105E1A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BC2D1470CF8C91FA9FE616F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C2C508DE716AFAE5E886CD05 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		C76143987BADBB79390FD28A /* GlucoseReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseReading.swift; sourceTree = "<group>"; };
+		ED6AB3BBFB224DED9E830241 /* dexbar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dexbar; path = .; sourceTree = SOURCE_ROOT; };
 		F84C3F78402C8D89086A0D36 /* DexBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DexBarApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -54,7 +52,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				06B83F2E36F83EFBC3310E6D /* Sparkle in Frameworks */,
+				06B83F2E36F83EFBC3310E6D /* DexBarCore in Frameworks */,
+				40734081E8569399614B0404 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +65,7 @@
 			children = (
 				25FF2AA49FB78B9A5A78DD61 /* DexBar */,
 				2F641FB1A8C200B6199EEDD4 /* DexBarTests */,
+				50703C2AEA6D2F0ABEFFA584 /* Packages */,
 				BB04B4D4991B0D977F567168 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,7 +83,6 @@
 			isa = PBXGroup;
 			children = (
 				4F4FC70EA62672F320D31940 /* Color+Hex.swift */,
-				C76143987BADBB79390FD28A /* GlucoseReading.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -105,6 +104,14 @@
 			path = Managers;
 			sourceTree = "<group>";
 		};
+		50703C2AEA6D2F0ABEFFA584 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				ED6AB3BBFB224DED9E830241 /* dexbar */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
 		9C182A398437A390DDBA9900 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -120,7 +127,6 @@
 		A567FEAA73A11F5111F2C4F0 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				5B4FD6003D8EE6421750AC4F /* DexcomService.swift */,
 				C2C508DE716AFAE5E886CD05 /* KeychainService.swift */,
 			);
 			path = Services;
@@ -162,6 +168,7 @@
 			);
 			name = DexBar;
 			packageProductDependencies = (
+				AB08D74EDB2AE9D265B8A29F /* DexBarCore */,
 				5879A5DC55764C3A6FA0AD96 /* Sparkle */,
 			);
 			productName = DexBar;
@@ -215,6 +222,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				19B9306E886B242300A54DC0 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				82C590A4BBDF7D98FAF82454 /* XCLocalSwiftPackageReference "." */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -252,10 +260,8 @@
 			files = (
 				E91737F93FDBCB658055BF32 /* Color+Hex.swift in Sources */,
 				203C1F97C596E3B9E65C4DEA /* DexBarApp.swift in Sources */,
-				6EB78758C4ADB1438C1D7AF1 /* DexcomService.swift in Sources */,
 				903C3C1CA07FE954674BA6E2 /* GlucoseChartView.swift in Sources */,
 				C900FB2031954BC5C53D0225 /* GlucoseMonitor.swift in Sources */,
-				54576C40F3C9FD96C8841522 /* GlucoseReading.swift in Sources */,
 				87E1786F0C695A858E1F0D9E /* KeychainService.swift in Sources */,
 				8A7A2BB99EF2AB023B3F13CD /* MenuBarView.swift in Sources */,
 				AA0153C8DA7F13EE9D7731EA /* NotificationManager.swift in Sources */,
@@ -503,6 +509,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		82C590A4BBDF7D98FAF82454 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		19B9306E886B242300A54DC0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -519,6 +532,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 19B9306E886B242300A54DC0 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		AB08D74EDB2AE9D265B8A29F /* DexBarCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DexBarCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -74,3 +74,16 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dexbar.app.tests
         GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  DexBar:
+    build:
+      targets:
+        DexBar: all
+    run:
+      config: Debug
+      executable: DexBar
+    test:
+      config: Debug
+      targets:
+        - DexBarTests
