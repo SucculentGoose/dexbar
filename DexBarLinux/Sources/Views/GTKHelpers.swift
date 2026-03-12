@@ -97,6 +97,72 @@ private let gtkCallbackTrampoline: @convention(c) (OpaquePointer?, gpointer?) ->
     Unmanaged<GtkCallback>.fromOpaque(ptr).takeUnretainedValue().action()
 }
 
+// MARK: - Draw signal (for GtkDrawingArea + Cairo)
+
+final class GtkDrawCallback {
+    let action: (OpaquePointer) -> Void
+    init(_ action: @escaping (OpaquePointer) -> Void) { self.action = action }
+    func retained() -> gpointer { gpointer(Unmanaged.passRetained(self).toOpaque()) }
+}
+
+/// Connects a "draw" signal on a GtkDrawingArea. The closure receives the `cairo_t*`.
+func gtkConnectDraw(_ widget: GWidget?, _ action: @escaping (OpaquePointer) -> Void) {
+    let cb = GtkDrawCallback(action)
+    let rawWidget: gpointer? = widget.map { UnsafeMutableRawPointer($0) }
+    g_signal_connect_data(
+        rawWidget, "draw",
+        unsafeBitCast(gtkDrawTrampoline, to: GCallback.self),
+        cb.retained(), nil, GConnectFlags(rawValue: 0)
+    )
+}
+
+private let gtkDrawTrampoline: @convention(c) (OpaquePointer?, OpaquePointer?, gpointer?) -> gboolean = { _, cr, userData in
+    guard let ptr = userData, let cr = cr else { return 0 }
+    Unmanaged<GtkDrawCallback>.fromOpaque(ptr).takeUnretainedValue().action(cr)
+    return 1
+}
+
+// MARK: - CSS helpers
+
+/// Applies a CSS stylesheet to the default screen (affects all widgets).
+func gtkApplyCSS(_ css: String) {
+    let provider = gtk_css_provider_new()
+    gtk_css_provider_load_from_data(provider, css, gssize(css.utf8.count), nil)
+    let screen = gdk_screen_get_default()
+    gtk_style_context_add_provider_for_screen(
+        screen, OpaquePointer(provider),
+        UInt32(GTK_STYLE_PROVIDER_PRIORITY_APPLICATION)
+    )
+}
+
+/// Applies a CSS class name to a widget.
+func gtkAddClass(_ widget: GWidget?, _ className: String) {
+    let ctx = gtk_widget_get_style_context(widget)
+    gtk_style_context_add_class(ctx, className)
+}
+
+/// Removes a CSS class name from a widget.
+func gtkRemoveClass(_ widget: GWidget?, _ className: String) {
+    let ctx = gtk_widget_get_style_context(widget)
+    gtk_style_context_remove_class(ctx, className)
+}
+
+// MARK: - Hex color parsing
+
+/// Parses "#RRGGBB" into (r, g, b) each in [0, 1].
+func hexToRGB(_ hex: String) -> (r: Double, g: Double, b: Double) {
+    var str = hex
+    if str.hasPrefix("#") { str.removeFirst() }
+    guard str.count == 6, let val = UInt64(str, radix: 16) else {
+        return (0.5, 0.5, 0.5)
+    }
+    return (
+        r: Double((val >> 16) & 0xFF) / 255.0,
+        g: Double((val >> 8)  & 0xFF) / 255.0,
+        b: Double( val        & 0xFF) / 255.0
+    )
+}
+
 // Returns 1 (TRUE) to prevent window destruction on delete-event
 func gtkConnectDeleteHide(_ widget: GWidget?, _ action: @escaping () -> Void) {
     let cb = GtkCallback(action)

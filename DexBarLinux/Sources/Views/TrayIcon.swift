@@ -131,6 +131,7 @@ final class TrayIcon {
         // Update available item — hidden until an update is found
         let updateItem   = gtk_menu_item_new_with_label("Update Available")!
         let updateSep    = gtk_separator_menu_item_new()!
+        let statusItem   = gtk_menu_item_new_with_label("Show Status")!
         let refreshItem  = gtk_menu_item_new_with_label("Refresh Now")!
         let overlayItem  = gtk_menu_item_new_with_label("Toggle Status Overlay")!
         let settingsItem = gtk_menu_item_new_with_label("Open Settings")!
@@ -139,12 +140,14 @@ final class TrayIcon {
 
         gtk_menu_shell_append(asMenuShell(menu), updateItem)
         gtk_menu_shell_append(asMenuShell(menu), updateSep)
+        gtk_menu_shell_append(asMenuShell(menu), statusItem)
         gtk_menu_shell_append(asMenuShell(menu), refreshItem)
         gtk_menu_shell_append(asMenuShell(menu), overlayItem)
         gtk_menu_shell_append(asMenuShell(menu), settingsItem)
         gtk_menu_shell_append(asMenuShell(menu), sepItem)
         gtk_menu_shell_append(asMenuShell(menu), quitItem)
 
+        gtkConnect(statusItem, signal: "activate") { [weak self] in self?.onTogglePopup?() }
         gtkConnect(refreshItem, signal: "activate") { [weak self] in
             guard let monitor = self?.monitor else { return }
             Task { @MainActor in await monitor.refreshNow() }

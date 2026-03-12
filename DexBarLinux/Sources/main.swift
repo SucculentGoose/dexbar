@@ -30,6 +30,9 @@ MainActor.assumeIsolated {
     let overlay  = StatusOverlay(monitor: monitor)
     let updater  = LinuxUpdater()
 
+    popup.onOpenSettings = { settings.show() }
+    popup.onCheckUpdates = { updater.checkForUpdates() }
+
     let tray = TrayIcon(
         monitor: monitor,
         onTogglePopup: { popup.toggle() },

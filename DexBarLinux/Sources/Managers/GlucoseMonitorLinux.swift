@@ -62,6 +62,36 @@ final class GlucoseMonitorLinux {
         return 3.31 + 0.02392 * mean
     }
 
+    /// Actual days of data available for the selected stats range.
+    var statsDataSpanDays: Double {
+        let cutoff = Date().addingTimeInterval(-statsTimeRange.interval)
+        let readings = recentReadings.filter { $0.date >= cutoff }
+        guard let oldest = readings.last?.date else { return 0 }
+        return Date().timeIntervalSince(oldest) / 86400
+    }
+
+    // MARK: - Chart
+
+    var selectedTimeRange: TimeRange {
+        get { TimeRange(rawValue: defaults.string(forKey: "selectedTimeRange") ?? TimeRange.threeHours.rawValue) ?? .threeHours }
+        set { defaults.set(newValue.rawValue, forKey: "selectedTimeRange") }
+    }
+
+    var chartReadings: [GlucoseReading] {
+        let cutoff = Date().addingTimeInterval(-selectedTimeRange.interval)
+        return recentReadings.filter { $0.date >= cutoff }
+    }
+
+    /// Returns the hex color string for a single reading based on threshold settings.
+    func colorForReading(_ reading: GlucoseReading) -> String {
+        let v = Double(reading.value)
+        if v < alertUrgentLowThresholdMgdL  { return colorUrgentLow  }
+        if v < alertLowThresholdMgdL         { return colorLow         }
+        if v > alertUrgentHighThresholdMgdL { return colorUrgentHigh }
+        if v > alertHighThresholdMgdL        { return colorHigh        }
+        return colorInRange
+    }
+
     // MARK: - Settings (via UserDefaults)
 
     var unit: GlucoseUnit {
@@ -320,7 +350,33 @@ final class GlucoseMonitorLinux {
             return
         }
 #endif
-        await start(username: username, password: password, region: region)
+        // Retry up to 3 times with increasing delays — the network may still be
+        // reconnecting after a sleep/wake cycle when this is called.
+        let delays: [UInt64] = [3_000_000_000, 5_000_000_000, 10_000_000_000]
+        for (attempt, delay) in delays.enumerated() {
+            try? await Task.sleep(nanoseconds: delay)
+            do {
+                service = DexcomService(region: region)
+                state = .loading
+                onUpdate?()
+                try await service?.authenticate(username: username, password: password)
+                await refresh(initialLoad: false)
+                return
+            } catch DexcomError.invalidCredentials, DexcomError.sessionExpired {
+                if attempt < delays.count - 1 {
+                    // Still failing — try again after next delay
+                    continue
+                }
+                state = .error("Session expired — reconnect in Settings")
+                scheduleTimer()
+                onUpdate?()
+            } catch {
+                state = .error(error.localizedDescription)
+                scheduleTimer(after: currentReading?.date)
+                onUpdate?()
+                return
+            }
+        }
     }
 
     private func evaluateAlerts(reading: GlucoseReading) {
