@@ -122,6 +122,50 @@ private let gtkDrawTrampoline: @convention(c) (OpaquePointer?, OpaquePointer?, g
     return 1
 }
 
+// MARK: - Motion event (for hover tracking on GtkDrawingArea)
+
+final class GtkMotionCallback {
+    let action: (Double, Double) -> Void
+    init(_ action: @escaping (Double, Double) -> Void) { self.action = action }
+    func retained() -> gpointer { gpointer(Unmanaged.passRetained(self).toOpaque()) }
+}
+
+/// Connects a "motion-notify-event" signal. The closure receives (x, y) in widget coords.
+func gtkConnectMotion(_ widget: GWidget?, _ action: @escaping (Double, Double) -> Void) {
+    gtk_widget_add_events(widget, gint(GDK_POINTER_MOTION_MASK.rawValue))
+    let cb = GtkMotionCallback(action)
+    let rawWidget: gpointer? = widget.map { UnsafeMutableRawPointer($0) }
+    g_signal_connect_data(
+        rawWidget, "motion-notify-event",
+        unsafeBitCast(gtkMotionTrampoline, to: GCallback.self),
+        cb.retained(), nil, GConnectFlags(rawValue: 0)
+    )
+}
+
+private let gtkMotionTrampoline: @convention(c) (OpaquePointer?, UnsafeMutablePointer<GdkEventMotion>?, gpointer?) -> gboolean = { _, event, userData in
+    guard let ptr = userData, let event = event else { return 0 }
+    Unmanaged<GtkMotionCallback>.fromOpaque(ptr).takeUnretainedValue().action(event.pointee.x, event.pointee.y)
+    return 0
+}
+
+/// Connects a "leave-notify-event" signal (mouse leaves widget).
+func gtkConnectLeave(_ widget: GWidget?, _ action: @escaping () -> Void) {
+    gtk_widget_add_events(widget, gint(GDK_LEAVE_NOTIFY_MASK.rawValue))
+    let cb = GtkCallback(action)
+    let rawWidget: gpointer? = widget.map { UnsafeMutableRawPointer($0) }
+    g_signal_connect_data(
+        rawWidget, "leave-notify-event",
+        unsafeBitCast(gtkLeaveTrampoline, to: GCallback.self),
+        cb.retained(), nil, GConnectFlags(rawValue: 0)
+    )
+}
+
+private let gtkLeaveTrampoline: @convention(c) (OpaquePointer?, OpaquePointer?, gpointer?) -> gboolean = { _, _, userData in
+    guard let ptr = userData else { return 0 }
+    Unmanaged<GtkCallback>.fromOpaque(ptr).takeUnretainedValue().action()
+    return 0
+}
+
 // MARK: - CSS helpers
 
 /// Applies a CSS stylesheet to the default screen (affects all widgets).

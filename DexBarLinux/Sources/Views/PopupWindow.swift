@@ -32,6 +32,11 @@ final class PopupWindow {
     private var gmiLabel: GWidget?
     private var spanWarningLabel: GWidget?
 
+    // Chart hover state
+    private var hoveredReading: GlucoseReading?
+    private var hoverX: Double = 0
+    private var hoverY: Double = 0
+
     // Action callbacks
     var onOpenSettings: (() -> Void)?
     var onCheckUpdates: (() -> Void)?
@@ -270,6 +275,18 @@ final class PopupWindow {
         gtkConnectDraw(chartArea) { [weak self] cr in
             self?.drawChart(cr: cr)
         }
+
+        // Hover tracking for tooltip
+        gtkConnectMotion(chartArea) { [weak self] x, y in
+            self?.handleChartHover(x: x, y: y)
+        }
+        gtkConnectLeave(chartArea) { [weak self] in
+            self?.hoveredReading = nil
+            if let area = self?.chartArea {
+                gtk_widget_queue_draw(area)
+            }
+        }
+
         packStart(section, chartArea)
 
         packStart(vbox, section)
@@ -434,6 +451,94 @@ final class PopupWindow {
             }
             labelDate = labelDate.addingTimeInterval(3600)
         }
+
+        // --- Hover tooltip ---
+        if let hovered = hoveredReading {
+            let val = unit == .mgdL ? Double(hovered.value) : hovered.mmolL
+            let px = xFor(hovered.date)
+            let py = yFor(val)
+
+            // Large highlighted circle
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.9)
+            cairo_arc(cr, px, py, 5.0, 0, 2.0 * Double.pi)
+            cairo_fill(cr)
+
+            // Colored ring
+            let hc = hexToRGB(monitor.colorForReading(hovered))
+            cairo_set_source_rgba(cr, hc.r, hc.g, hc.b, 1.0)
+            cairo_arc(cr, px, py, 5.0, 0, 2.0 * Double.pi)
+            cairo_set_line_width(cr, 1.5)
+            cairo_stroke(cr)
+
+            // Build tooltip text
+            let valText = "\(hovered.displayValue(unit: unit)) \(hovered.trend.arrow)"
+            let deltaText = deltaFromPrevious(for: hovered) ?? ""
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "h:mm a"
+            let timeText = timeFormatter.string(from: hovered.date)
+
+            // Measure text for tooltip box
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD)
+            cairo_set_font_size(cr, 10)
+            var valExtents = cairo_text_extents_t()
+            cairo_text_extents(cr, valText, &valExtents)
+
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
+            cairo_set_font_size(cr, 9)
+            var deltaExtents = cairo_text_extents_t()
+            if !deltaText.isEmpty {
+                cairo_text_extents(cr, deltaText, &deltaExtents)
+            }
+            var timeExtents = cairo_text_extents_t()
+            cairo_text_extents(cr, timeText, &timeExtents)
+
+            let tooltipW = max(valExtents.width + (deltaText.isEmpty ? 0 : deltaExtents.width + 6), timeExtents.width) + 16
+            let tooltipH: Double = 34
+            let tooltipPadding = 8.0
+            let tooltipGap = 6.0
+
+            // Position tooltip above point, clamped to chart bounds
+            var tx = px - tooltipW / 2
+            var ty = py - tooltipH - tooltipGap
+            tx = max(margin.left, min(tx, margin.left + plotW - tooltipW))
+            if ty < margin.top {
+                ty = py + tooltipGap // flip below if too high
+            }
+
+            // Tooltip background (rounded rect)
+            let cr2r = 4.0
+            cairo_new_sub_path(cr)
+            cairo_arc(cr, tx + tooltipW - cr2r, ty + cr2r, cr2r, -Double.pi / 2, 0)
+            cairo_arc(cr, tx + tooltipW - cr2r, ty + tooltipH - cr2r, cr2r, 0, Double.pi / 2)
+            cairo_arc(cr, tx + cr2r, ty + tooltipH - cr2r, cr2r, Double.pi / 2, Double.pi)
+            cairo_arc(cr, tx + cr2r, ty + cr2r, cr2r, Double.pi, 3 * Double.pi / 2)
+            cairo_close_path(cr)
+            cairo_set_source_rgba(cr, 0.22, 0.22, 0.22, 0.95)
+            cairo_fill(cr)
+
+            // Value text (bold)
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD)
+            cairo_set_font_size(cr, 10)
+            cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0)
+            cairo_move_to(cr, tx + tooltipPadding, ty + 13)
+            cairo_show_text(cr, valText)
+
+            // Delta text (normal, secondary)
+            if !deltaText.isEmpty {
+                cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
+                cairo_set_font_size(cr, 9)
+                cairo_set_source_rgba(cr, 0.7, 0.7, 0.7, 1.0)
+                cairo_move_to(cr, tx + tooltipPadding + valExtents.width + 6, ty + 13)
+                cairo_show_text(cr, deltaText)
+            }
+
+            // Time text
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
+            cairo_set_font_size(cr, 9)
+            cairo_set_source_rgba(cr, 0.6, 0.6, 0.6, 1.0)
+            cairo_move_to(cr, tx + tooltipPadding, ty + 26)
+            cairo_show_text(cr, timeText)
+        }
     }
 
     private func xAxisStride(for range: TimeRange) -> Int {
@@ -442,6 +547,55 @@ final class PopupWindow {
         case .sixHours:    return 2
         case .twelveHours: return 3
         case .day:         return 6
+        }
+    }
+
+    // MARK: - Chart Hover
+
+    private func handleChartHover(x: Double, y: Double) {
+        guard let monitor else { return }
+        let readings = monitor.chartReadings.sorted { $0.date < $1.date }
+        guard !readings.isEmpty else { return }
+
+        let w = Double(gtk_widget_get_allocated_width(chartArea))
+        let margin = (left: 8.0, right: 40.0)
+        let plotW = w - margin.left - margin.right
+
+        let now = Date()
+        let timeStart = now.addingTimeInterval(-monitor.selectedTimeRange.interval)
+        let timeRange = now.timeIntervalSince(timeStart)
+
+        // Convert x pixel to time, find nearest reading
+        let t = (x - margin.left) / plotW
+        let hoverDate = timeStart.addingTimeInterval(t * timeRange)
+
+        let nearest = readings.min { a, b in
+            abs(a.date.timeIntervalSince(hoverDate)) < abs(b.date.timeIntervalSince(hoverDate))
+        }
+
+        if hoveredReading?.date != nearest?.date {
+            hoveredReading = nearest
+            hoverX = x
+            hoverY = y
+            if let area = chartArea {
+                gtk_widget_queue_draw(area)
+            }
+        }
+    }
+
+    /// Calculates the delta between a reading and the one immediately before it.
+    private func deltaFromPrevious(for reading: GlucoseReading) -> String? {
+        guard let monitor else { return nil }
+        let all = monitor.recentReadings // sorted newest-first
+        guard let idx = all.firstIndex(where: { $0.date == reading.date }),
+              idx + 1 < all.count else { return nil }
+        let diff = reading.value - all[idx + 1].value
+        switch monitor.unit {
+        case .mgdL:
+            return diff >= 0 ? "+\(diff)" : "\(diff)"
+        case .mmolL:
+            let d = Double(diff) / 18.0
+            return d >= 0 ? String(format: "+%.1f", d) : String(format: "%.1f", d)
         }
     }
 
