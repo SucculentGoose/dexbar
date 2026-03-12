@@ -25,7 +25,7 @@ jobs:
         run: |
           xcodebuild test \
             -project DexBar.xcodeproj \
-            -scheme DexBarTests \
+            -scheme DexBar \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
