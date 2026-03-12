@@ -14,8 +14,7 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
-    outputs:
-      app_version: ${{ steps.read_version.outputs.app_version }}
+      pull-requests: write
 
     steps:
       - name: Checkout
@@ -24,10 +23,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Read version
-        id: read_version
-        run: |
-          echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
-          echo "app_version=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -139,14 +135,27 @@ jobs:
               f.write(content)
           EOF
 
-      - name: Tag and commit updated appcast.xml
+      - name: Create appcast update PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="chore/appcast-v${{ env.APP_VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add appcast.xml project.yml
           git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore: update appcast for v${{ env.APP_VERSION }}" \
+            --body "Automated appcast update for release v${{ env.APP_VERSION }}." \
+            --base main \
+            --head "$BRANCH"
+
+      - name: Tag release
+        run: |
           git tag "v${{ env.APP_VERSION }}"
-          git push origin HEAD:main --tags
+          git push origin "v${{ env.APP_VERSION }}"
 
       - name: Extract release notes from CHANGELOG
         run: |
@@ -159,14 +168,11 @@ jobs:
           notes = match.group(1).strip() if match else "See CHANGELOG.md for details."
           footer = """
           ---
-          ### macOS Installation
+          ### Installation
           1. Download **DexBar-v{version}.zip** below and unzip it
           2. Drag **DexBar.app** to your `/Applications` folder
           3. **First launch:** run `xattr -cr /Applications/DexBar.app` in Terminal if macOS blocks it
           4. Click the menu bar icon → **Settings** → enter your Dexcom credentials
-
-          ### Linux Installation
-          Download **dexbar-linux-x86_64-v{version}.tar.gz** below, extract it, and run `./install.sh`
           """.format(version=open("VERSION").read().strip())
           with open("release_notes.md", "w") as f:
               f.write(notes + "\n" + footer)
@@ -186,6 +192,7 @@ jobs:
     needs: build
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout
@@ -269,12 +276,20 @@ jobs:
               f.write(content)
           EOF
 
-      - name: Commit updated appcast-linux.xml
+      - name: Create linux appcast update PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="chore/appcast-linux-v${{ env.APP_VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
+          git checkout -b "$BRANCH"
           git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
           git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
-          git push origin HEAD:main
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore: update linux appcast for v${{ env.APP_VERSION }}" \
+            --body "Automated Linux appcast update for release v${{ env.APP_VERSION }}." \
+            --base main \
+            --head "$BRANCH"
 
