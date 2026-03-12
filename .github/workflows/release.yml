@@ -145,12 +145,14 @@ jobs:
           git checkout -b "$BRANCH"
           git add appcast.xml project.yml
           git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
-          git push origin "$BRANCH"
-          gh pr create \
-            --title "chore: update appcast for v${{ env.APP_VERSION }}" \
-            --body "Automated appcast update for release v${{ env.APP_VERSION }}." \
-            --base main \
-            --head "$BRANCH"
+          git push origin "$BRANCH" 2>/dev/null || true
+          if ! gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q "OPEN"; then
+            gh pr create \
+              --title "chore: update appcast for v${{ env.APP_VERSION }}" \
+              --body "Automated appcast update for release v${{ env.APP_VERSION }}." \
+              --base main \
+              --head "$BRANCH"
+          fi
 
       - name: Tag release
         run: |
@@ -286,10 +288,12 @@ jobs:
           git checkout -b "$BRANCH"
           git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
           git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
-          git push origin "$BRANCH"
-          gh pr create \
-            --title "chore: update linux appcast for v${{ env.APP_VERSION }}" \
-            --body "Automated Linux appcast update for release v${{ env.APP_VERSION }}." \
-            --base main \
-            --head "$BRANCH"
+          git push origin "$BRANCH" 2>/dev/null || true
+          if ! gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q "OPEN"; then
+            gh pr create \
+              --title "chore: update linux appcast for v${{ env.APP_VERSION }}" \
+              --body "Automated Linux appcast update for release v${{ env.APP_VERSION }}." \
+              --base main \
+              --head "$BRANCH"
+          fi
 
