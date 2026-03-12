@@ -477,24 +477,26 @@ final class PopupWindow {
             timeFormatter.dateFormat = "h:mm a"
             let timeText = timeFormatter.string(from: hovered.date)
 
-            // Measure text for tooltip box
-            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD)
-            cairo_set_font_size(cr, 10)
-            var valExtents = cairo_text_extents_t()
-            cairo_text_extents(cr, valText, &valExtents)
+            // Use Pango for Unicode arrow support
+            let pangoLayout = pango_cairo_create_layout(cr)
+            defer { g_object_unref(gpointer(pangoLayout)) }
 
-            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
-            cairo_set_font_size(cr, 9)
-            var deltaExtents = cairo_text_extents_t()
-            if !deltaText.isEmpty {
-                cairo_text_extents(cr, deltaText, &deltaExtents)
+            // Measure line 1: value + delta
+            let line1: String
+            if deltaText.isEmpty {
+                line1 = "<b>\(valText)</b>"
+            } else {
+                line1 = "<b>\(valText)</b>  <span color='#aaaaaa'>\(deltaText)</span>"
             }
-            var timeExtents = cairo_text_extents_t()
-            cairo_text_extents(cr, timeText, &timeExtents)
+            let fullMarkup = "<span font='9'>\(line1)\n<span color='#999999'>\(timeText)</span></span>"
+            pango_layout_set_markup(pangoLayout, fullMarkup, -1)
 
-            let tooltipW = max(valExtents.width + (deltaText.isEmpty ? 0 : deltaExtents.width + 6), timeExtents.width) + 16
-            let tooltipH: Double = 34
-            let tooltipPadding = 8.0
+            var textW: Int32 = 0, textH: Int32 = 0
+            pango_layout_get_pixel_size(pangoLayout, &textW, &textH)
+
+            let tooltipPad = 8.0
+            let tooltipW = Double(textW) + tooltipPad * 2
+            let tooltipH = Double(textH) + tooltipPad * 2
             let tooltipGap = 6.0
 
             // Position tooltip above point, clamped to chart bounds
@@ -502,7 +504,7 @@ final class PopupWindow {
             var ty = py - tooltipH - tooltipGap
             tx = max(margin.left, min(tx, margin.left + plotW - tooltipW))
             if ty < margin.top {
-                ty = py + tooltipGap // flip below if too high
+                ty = py + tooltipGap
             }
 
             // Tooltip background (rounded rect)
@@ -516,28 +518,10 @@ final class PopupWindow {
             cairo_set_source_rgba(cr, 0.22, 0.22, 0.22, 0.95)
             cairo_fill(cr)
 
-            // Value text (bold)
-            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD)
-            cairo_set_font_size(cr, 10)
+            // Render text with Pango
+            cairo_move_to(cr, tx + tooltipPad, ty + tooltipPad)
             cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0)
-            cairo_move_to(cr, tx + tooltipPadding, ty + 13)
-            cairo_show_text(cr, valText)
-
-            // Delta text (normal, secondary)
-            if !deltaText.isEmpty {
-                cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
-                cairo_set_font_size(cr, 9)
-                cairo_set_source_rgba(cr, 0.7, 0.7, 0.7, 1.0)
-                cairo_move_to(cr, tx + tooltipPadding + valExtents.width + 6, ty + 13)
-                cairo_show_text(cr, deltaText)
-            }
-
-            // Time text
-            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL)
-            cairo_set_font_size(cr, 9)
-            cairo_set_source_rgba(cr, 0.6, 0.6, 0.6, 1.0)
-            cairo_move_to(cr, tx + tooltipPadding, ty + 26)
-            cairo_show_text(cr, timeText)
+            pango_cairo_show_layout(cr, pangoLayout)
         }
     }
 
