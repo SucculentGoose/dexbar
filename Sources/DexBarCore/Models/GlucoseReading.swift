@@ -93,6 +93,13 @@ public struct DexcomRawReading: Decodable {
     public let trend: String
     public let trendRate: Double?
 
+    public init(wt: String, value: Int, trend: String, trendRate: Double?) {
+        self.wt = wt
+        self.value = value
+        self.trend = trend
+        self.trendRate = trendRate
+    }
+
     public enum CodingKeys: String, CodingKey {
         case wt = "WT"
         case value = "Value"
