@@ -2,9 +2,10 @@
 
 # DexBar
 
-A native macOS menu bar app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API.
+A native menu bar / system tray app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API. Available for **macOS** and **Linux**.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)
+![Linux](https://img.shields.io/badge/Linux-GTK3-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 
 ## Features
@@ -169,10 +170,11 @@ sudo apt install libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev libno
 # 2. Clone and build
 git clone https://github.com/SucculentGoose/dexbar
 cd dexbar
-swift build -c release --target DexBarLinux
+swift build -c release --product DexBarLinux
 
-# 3. Install
-sudo install -m 755 .build/release/DexBarLinux /usr/local/bin/dexbar
+# 3. Install (user-local, no sudo needed)
+mkdir -p ~/.local/bin
+cp .build/release/DexBarLinux ~/.local/bin/dexbar
 ```
 
 Or use the install script which does all of the above:
@@ -187,14 +189,15 @@ curl -fsSL https://raw.githubusercontent.com/SucculentGoose/dexbar/main/install.
 dexbar &
 ```
 
-A tray icon (`…` or `---`) appears in your system tray. Left-click to open the status popup; right-click for the menu. Open **Settings** → **Account**, enter your Dexcom credentials, choose your region, and click **Connect**.
+A tray icon appears in your system tray. Click it to open the menu, then choose **Show Status** to open the glucose popup or **Open Settings** to configure the app. In Settings → **Account**, enter your Dexcom credentials, choose your region, and click **Connect**.
 
 Credentials are stored securely in KDE Wallet (or GNOME Keyring) via the Secret Service D-Bus API. On first run KDE Wallet may prompt you to create a wallet or unlock an existing one.
 
-### Linux Known Limitations
+### Linux Features
 
-- The interactive glucose chart is not available in the Linux version (planned for a future release).
-- Automatic updates are not available; upgrade by re-running the install steps.
+- **Status popup** — macOS-style popup with a live glucose chart (3h/6h/12h/24h), Time in Range bar (2d–90d), GMI, and real-time countdown to the next reading
+- **Auto-update** — checks for updates on launch and daily; one-click install from the tray menu
+- **Credential storage** — passwords stored securely via the Secret Service D-Bus API (KDE Wallet / GNOME Keyring)
 
 
 
