@@ -30,8 +30,11 @@ public class DexcomException : Exception
 public class DexcomService
 {
     private static readonly HttpClient _http = new();
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly Regex _wtRegex = new(@"\d+", RegexOptions.Compiled);
     private const string AppId = "d8665ade-9673-4e27-9ff6-92db4ce13d13";
 
+    // Note: _sessionId is not thread-safe. The monitor ensures only one poll runs at a time.
     private string? _sessionId;
     private readonly DexcomRegion _region;
 
@@ -152,8 +155,7 @@ public class DexcomService
         List<DexcomRawReading> rawReadings;
         try
         {
-            rawReadings = JsonSerializer.Deserialize<List<DexcomRawReading>>(json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            rawReadings = JsonSerializer.Deserialize<List<DexcomRawReading>>(json, _jsonOptions)
                 ?? [];
         }
         catch (Exception ex)
@@ -222,7 +224,7 @@ public class DexcomService
         if (wt is null) return DateTime.UtcNow;
 
         // Extract the numeric milliseconds from "Date(ms)"
-        var match = Regex.Match(wt, @"\d+");
+        var match = _wtRegex.Match(wt);
         if (!match.Success || !long.TryParse(match.Value, out var ms))
             return DateTime.UtcNow;
 

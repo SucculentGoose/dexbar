@@ -113,7 +113,12 @@ public static class CredentialStorage
     public static string? LoadPassword()
     {
         if (!CredRead(CredentialTarget, CRED_TYPE.Generic, 0, out var credPtr))
-            return null;
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (error == 1168) // ERROR_NOT_FOUND — credential does not exist
+                return null;
+            throw new InvalidOperationException($"CredRead failed with error {error}");
+        }
 
         try
         {
@@ -122,8 +127,11 @@ public static class CredentialStorage
             if (cred.CredentialBlobSize == 0 || cred.CredentialBlob == IntPtr.Zero)
                 return null;
 
-            var blob = new byte[cred.CredentialBlobSize];
-            Marshal.Copy(cred.CredentialBlob, blob, 0, blob.Length);
+            if (cred.CredentialBlobSize > int.MaxValue)
+                return null; // blob too large, should never happen in practice
+            var blobSize = (int)cred.CredentialBlobSize;
+            var blob = new byte[blobSize];
+            Marshal.Copy(cred.CredentialBlob, blob, 0, blobSize);
             return Encoding.UTF8.GetString(blob);
         }
         finally
