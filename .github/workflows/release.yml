@@ -265,8 +265,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
           git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
+          git pull --rebase origin main
           git push origin HEAD:main
 
