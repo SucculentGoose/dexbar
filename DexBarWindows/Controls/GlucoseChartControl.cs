@@ -1,0 +1,244 @@
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+using System.Windows.Forms;
+using DexBarWindows.Managers;
+using DexBarWindows.Models;
+
+namespace DexBarWindows.Controls;
+
+/// <summary>
+/// Custom-painted chart displaying glucose readings over a selected time window.
+/// </summary>
+public class GlucoseChartControl : UserControl
+{
+    private readonly GlucoseMonitor _monitor;
+    private TimeRange _selectedRange = TimeRange.ThreeHours;
+
+    private const int PadLeft = 36;
+    private const int PadRight = 6;
+    private const int PadTop = 6;
+    private const int PadBottom = 22;
+
+    private static readonly Color BackgroundColor = Color.FromArgb(24, 24, 26);
+    private static readonly Color GridColor = Color.FromArgb(50, 50, 55);
+    private static readonly Color LabelColor = Color.FromArgb(130, 130, 140);
+
+    public TimeRange SelectedRange
+    {
+        get => _selectedRange;
+        set { _selectedRange = value; Invalidate(); }
+    }
+
+    public GlucoseChartControl(GlucoseMonitor monitor)
+    {
+        _monitor = monitor;
+        DoubleBuffered = true;
+        BackColor = BackgroundColor;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+
+        var settings = _monitor.Settings;
+        var unit = settings.Unit;
+        var readings = GetReadings();
+
+        var plotRect = new Rectangle(
+            PadLeft, PadTop,
+            Width - PadLeft - PadRight,
+            Height - PadTop - PadBottom);
+
+        if (readings.Count == 0)
+        {
+            DrawNoData(g, plotRect);
+            return;
+        }
+
+        // Y domain
+        double lowThresh  = Threshold(settings.AlertLowThresholdMgdL,  unit);
+        double highThresh = Threshold(settings.AlertHighThresholdMgdL, unit);
+        var vals = readings.Select(r => DisplayVal(r, unit)).ToList();
+        double yPad   = unit == GlucoseUnit.MmolL ? 0.8 : 15;
+        double minY   = Math.Min(vals.Min(), lowThresh)  - yPad;
+        double maxY   = Math.Max(vals.Max(), highThresh) + yPad;
+
+        // X domain
+        var now       = DateTime.UtcNow;
+        var startTime = now - _selectedRange.Interval();
+        double xSpan  = (now - startTime).TotalSeconds;
+
+        float ToX(DateTime dt) =>
+            plotRect.Left + (float)((dt - startTime).TotalSeconds / xSpan) * plotRect.Width;
+        float ToY(double v) =>
+            plotRect.Bottom - (float)((v - minY) / (maxY - minY)) * plotRect.Height;
+
+        DrawInRangeBand(g, plotRect, ToY, highThresh, lowThresh, settings);
+        DrawThresholdLines(g, plotRect, ToY, highThresh, lowThresh, settings);
+        DrawYAxis(g, plotRect, minY, maxY, unit);
+        DrawXAxis(g, plotRect, startTime, now, ToX);
+
+        if (readings.Count >= 2)
+            DrawLine(g, readings, unit, ToX, ToY);
+
+        DrawPoints(g, readings, unit, settings, ToX, ToY);
+    }
+
+    // -------------------------------------------------------------------------
+    // Drawing helpers
+    // -------------------------------------------------------------------------
+
+    private static void DrawNoData(Graphics g, Rectangle plotRect)
+    {
+        using var font  = new Font("Segoe UI", 9f);
+        using var brush = new SolidBrush(LabelColor);
+        const string text = "No readings for this period";
+        var sz = g.MeasureString(text, font);
+        g.DrawString(text, font, brush,
+            plotRect.Left + (plotRect.Width  - sz.Width)  / 2,
+            plotRect.Top  + (plotRect.Height - sz.Height) / 2);
+    }
+
+    private static void DrawInRangeBand(
+        Graphics g, Rectangle plotRect,
+        Func<double, float> toY,
+        double highThresh, double lowThresh,
+        AppSettings settings)
+    {
+        var inRangeColor = ParseColor(settings.ColorInRange);
+        using var brush = new SolidBrush(Color.FromArgb(28, inRangeColor));
+        float y1 = toY(highThresh);
+        float y2 = toY(lowThresh);
+        g.FillRectangle(brush, plotRect.Left, y1, plotRect.Width, y2 - y1);
+    }
+
+    private static void DrawThresholdLines(
+        Graphics g, Rectangle plotRect,
+        Func<double, float> toY,
+        double highThresh, double lowThresh,
+        AppSettings settings)
+    {
+        if (settings.AlertLowEnabled)
+        {
+            using var pen = new Pen(Color.FromArgb(120, ParseColor(settings.ColorLow)), 1f)
+            {
+                DashStyle = DashStyle.Dash
+            };
+            float y = toY(lowThresh);
+            g.DrawLine(pen, plotRect.Left, y, plotRect.Right, y);
+        }
+
+        if (settings.AlertHighEnabled)
+        {
+            using var pen = new Pen(Color.FromArgb(120, ParseColor(settings.ColorHigh)), 1f)
+            {
+                DashStyle = DashStyle.Dash
+            };
+            float y = toY(highThresh);
+            g.DrawLine(pen, plotRect.Left, y, plotRect.Right, y);
+        }
+    }
+
+    private static void DrawYAxis(Graphics g, Rectangle plotRect, double minY, double maxY, GlucoseUnit unit)
+    {
+        using var font  = new Font("Segoe UI", 7.5f);
+        using var brush = new SolidBrush(LabelColor);
+        using var gridPen = new Pen(GridColor, 1f);
+
+        const int steps = 4;
+        for (int i = 0; i <= steps; i++)
+        {
+            double val = minY + (maxY - minY) * i / steps;
+            float y    = plotRect.Bottom - (float)((val - minY) / (maxY - minY)) * plotRect.Height;
+            string lbl = unit == GlucoseUnit.MmolL ? val.ToString("F1") : ((int)val).ToString();
+            var sz = g.MeasureString(lbl, font);
+            g.DrawString(lbl, font, brush, PadLeft - sz.Width - 2, y - sz.Height / 2);
+            g.DrawLine(gridPen, plotRect.Left, y, plotRect.Right, y);
+        }
+    }
+
+    private static void DrawXAxis(
+        Graphics g, Rectangle plotRect,
+        DateTime startTime, DateTime now,
+        Func<DateTime, float> toX)
+    {
+        using var font  = new Font("Segoe UI", 7.5f);
+        using var brush = new SolidBrush(LabelColor);
+
+        // Start at the first whole hour after startTime
+        var firstHour = new DateTime(startTime.Year, startTime.Month, startTime.Day,
+            startTime.Hour, 0, 0, DateTimeKind.Utc).AddHours(1);
+
+        int span  = (int)(now - startTime).TotalHours;
+        int stride = span <= 3 ? 1 : span <= 6 ? 2 : span <= 12 ? 3 : 6;
+
+        for (var t = firstHour; t <= now; t = t.AddHours(stride))
+        {
+            float x = toX(t);
+            if (x < plotRect.Left || x > plotRect.Right) continue;
+            string lbl = t.ToLocalTime().ToString("h tt");
+            var sz = g.MeasureString(lbl, font);
+            g.DrawString(lbl, font, brush, x - sz.Width / 2, plotRect.Bottom + 3);
+        }
+    }
+
+    private static void DrawLine(
+        Graphics g, List<GlucoseReading> readings, GlucoseUnit unit,
+        Func<DateTime, float> toX, Func<double, float> toY)
+    {
+        var pts = readings
+            .Select(r => new PointF(toX(r.Date), toY(DisplayVal(r, unit))))
+            .ToArray();
+        using var pen = new Pen(Color.FromArgb(180, 100, 160, 255), 1.8f);
+        g.DrawLines(pen, pts);
+    }
+
+    private static void DrawPoints(
+        Graphics g, List<GlucoseReading> readings, GlucoseUnit unit,
+        AppSettings settings, Func<DateTime, float> toX, Func<double, float> toY)
+    {
+        foreach (var r in readings)
+        {
+            float x = toX(r.Date);
+            float y = toY(DisplayVal(r, unit));
+            var color = GlucoseColor(r.Value, settings);
+            using var brush = new SolidBrush(color);
+            g.FillEllipse(brush, x - 3f, y - 3f, 6f, 6f);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private List<GlucoseReading> GetReadings()
+    {
+        var cutoff = DateTime.UtcNow - _selectedRange.Interval();
+        return _monitor.RecentReadings.Where(r => r.Date >= cutoff).ToList();
+    }
+
+    private static double DisplayVal(GlucoseReading r, GlucoseUnit unit) =>
+        unit == GlucoseUnit.MmolL ? r.MmolL : r.Value;
+
+    private static double Threshold(int mgdL, GlucoseUnit unit) =>
+        unit == GlucoseUnit.MmolL ? mgdL / 18.0 : mgdL;
+
+    private static Color GlucoseColor(int mgdL, AppSettings s)
+    {
+        if (mgdL <= s.AlertUrgentLowThresholdMgdL)  return ParseColor(s.ColorUrgentLow);
+        if (mgdL <= s.AlertLowThresholdMgdL)         return ParseColor(s.ColorLow);
+        if (mgdL <  s.AlertHighThresholdMgdL)         return ParseColor(s.ColorInRange);
+        if (mgdL <  s.AlertUrgentHighThresholdMgdL)   return ParseColor(s.ColorHigh);
+        return ParseColor(s.ColorUrgentHigh);
+    }
+
+    private static Color ParseColor(string hex)
+    {
+        try { return ColorTranslator.FromHtml(hex); }
+        catch { return Color.Gray; }
+    }
+}
