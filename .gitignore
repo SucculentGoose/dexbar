@@ -58,3 +58,6 @@ Pods/
 
 # Archives
 *.xcarchive
+
+# Git worktrees
+.worktrees/
