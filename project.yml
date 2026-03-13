@@ -60,7 +60,11 @@ targets:
         INFOPLIST_FILE: DexBar/Info.plist
         CODE_SIGN_ENTITLEMENTS: DexBar/DexBar.entitlements
         CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
+<<<<<<< Updated upstream
         MARKETING_VERSION: "1.5.0"
+=======
+        MARKETING_VERSION: "1.5.1"
+>>>>>>> Stashed changes
 
   DexBarTests:
     type: bundle.unit-test

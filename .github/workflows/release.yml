@@ -14,13 +14,12 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Read version
         run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
@@ -135,29 +134,14 @@ jobs:
               f.write(content)
           EOF
 
-      - name: Create appcast update PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag and commit updated appcast.xml
         run: |
-          BRANCH="chore/appcast-v${{ env.APP_VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
           git add appcast.xml project.yml
           git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
-          git push origin "$BRANCH" 2>/dev/null || true
-          if ! gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q "OPEN"; then
-            gh pr create \
-              --title "chore: update appcast for v${{ env.APP_VERSION }}" \
-              --body "Automated appcast update for release v${{ env.APP_VERSION }}." \
-              --base main \
-              --head "$BRANCH"
-          fi
-
-      - name: Tag release
-        run: |
           git tag "v${{ env.APP_VERSION }}"
-          git push origin "v${{ env.APP_VERSION }}"
+          git push origin HEAD:main --tags
 
       - name: Extract release notes from CHANGELOG
         run: |
@@ -194,14 +178,13 @@ jobs:
     needs: build
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Read version
         run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
@@ -278,22 +261,12 @@ jobs:
               f.write(content)
           EOF
 
-      - name: Create linux appcast update PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit updated appcast-linux.xml
         run: |
-          BRANCH="chore/appcast-linux-v${{ env.APP_VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
+          git pull --rebase origin main
           git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
           git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
-          git push origin "$BRANCH" 2>/dev/null || true
-          if ! gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q "OPEN"; then
-            gh pr create \
-              --title "chore: update linux appcast for v${{ env.APP_VERSION }}" \
-              --body "Automated Linux appcast update for release v${{ env.APP_VERSION }}." \
-              --base main \
-              --head "$BRANCH"
-          fi
+          git push origin HEAD:main
 
