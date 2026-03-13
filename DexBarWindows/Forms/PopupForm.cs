@@ -16,6 +16,8 @@ public class PopupForm : Form
     public event Action? OpenSettingsRequested;
 
     private readonly GlucoseMonitor _monitor;
+    private Point _dragStart;
+    private bool  _dragging;
 
     // ── Header ──────────────────────────────────────────────────────────────
     private readonly Panel        _pnlStale;
@@ -289,8 +291,40 @@ public class PopupForm : Form
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         };
 
+        // Allow the form to be dragged by clicking anywhere on it
+        MouseDown += OnDragStart;
+        MouseMove += OnDragMove;
+        MouseUp   += OnDragEnd;
+
         UpdateDisplay();
         _monitor.OnUpdate += UpdateDisplay;
+    }
+
+    // -------------------------------------------------------------------------
+    // Drag-to-move (borderless form has no title bar)
+    // -------------------------------------------------------------------------
+
+    private void OnDragStart(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            _dragging  = true;
+            _dragStart = e.Location;
+        }
+    }
+
+    private void OnDragMove(object? sender, MouseEventArgs e)
+    {
+        if (_dragging)
+            Location = new Point(
+                Left + e.X - _dragStart.X,
+                Top  + e.Y - _dragStart.Y);
+    }
+
+    private void OnDragEnd(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+            _dragging = false;
     }
 
     // -------------------------------------------------------------------------
