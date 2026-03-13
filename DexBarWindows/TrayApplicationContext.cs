@@ -191,14 +191,23 @@ public class TrayApplicationContext : ApplicationContext
 
     private void UpdateIcon(string text, Color color)
     {
-        const int size = 32;
+        // Draw at 64x64 so the bitmap is crisp when Windows scales it for any DPI.
+        // ClearType requires an opaque background, so use AntiAlias on the transparent canvas.
+        const int size = 64;
         using var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
+            g.SmoothingMode      = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint  = TextRenderingHint.AntiAlias;
             g.Clear(Color.Transparent);
-            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
-            float fontSize = text.Length <= 3 ? 13f : 10f;
+            // Pill background — dark with a subtle tint of the glucose colour
+            var bgColor = Color.FromArgb(200, 30, 30, 32);
+            using var bgBrush = new SolidBrush(bgColor);
+            g.FillRectangle(bgBrush, 0, 0, size, size);
+
+            // Glucose text
+            float fontSize = text.Length <= 3 ? 30f : 22f;
             using var font  = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
             using var brush = new SolidBrush(color);
             var sf = new StringFormat
