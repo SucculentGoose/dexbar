@@ -5,6 +5,10 @@ Application.EnableVisualStyles();
 Application.SetCompatibleTextRenderingDefault(false);
 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
+// Install the WinForms sync context now so GlucoseMonitor can capture it
+// in its constructor, which runs before Application.Run() does it internally.
+SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+
 // Show a message box for any unhandled UI-thread exception instead of silently dying.
 Application.ThreadException += (_, e) => ShowFatalError(e.Exception);
 
