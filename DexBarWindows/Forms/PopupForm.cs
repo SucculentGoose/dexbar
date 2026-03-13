@@ -291,10 +291,10 @@ public class PopupForm : Form
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         };
 
-        // Allow the form to be dragged by clicking anywhere on it
-        MouseDown += OnDragStart;
-        MouseMove += OnDragMove;
-        MouseUp   += OnDragEnd;
+        // Allow the form to be dragged by clicking anywhere on it.
+        // Must be applied recursively because DockStyle.Fill child panels
+        // cover the entire form surface and absorb all mouse events.
+        MakeDraggable(this);
 
         UpdateDisplay();
         _monitor.OnUpdate += UpdateDisplay;
@@ -304,21 +304,41 @@ public class PopupForm : Form
     // Drag-to-move (borderless form has no title bar)
     // -------------------------------------------------------------------------
 
+    private void MakeDraggable(Control root)
+    {
+        foreach (Control c in root.Controls)
+        {
+            // Skip interactive controls — they need their own mouse events
+            if (c is Button or TextBox or ComboBox or NumericUpDown
+                   or CheckBox or RadioButton or LinkLabel
+                   or GlucoseChartControl or TirBarControl)
+                continue;
+
+            c.MouseDown += OnDragStart;
+            c.MouseMove += OnDragMove;
+            c.MouseUp   += OnDragEnd;
+            MakeDraggable(c);
+        }
+    }
+
     private void OnDragStart(object? sender, MouseEventArgs e)
     {
         if (e.Button == MouseButtons.Left)
         {
             _dragging  = true;
-            _dragStart = e.Location;
+            // Convert to screen coords so movement stays correct as the form moves
+            _dragStart = PointToScreen(((Control)sender!).PointToScreen(e.Location));
         }
     }
 
     private void OnDragMove(object? sender, MouseEventArgs e)
     {
-        if (_dragging)
-            Location = new Point(
-                Left + e.X - _dragStart.X,
-                Top  + e.Y - _dragStart.Y);
+        if (!_dragging) return;
+        var current = PointToScreen(((Control)sender!).PointToScreen(e.Location));
+        Location = new Point(
+            Left + current.X - _dragStart.X,
+            Top  + current.Y - _dragStart.Y);
+        _dragStart = current;
     }
 
     private void OnDragEnd(object? sender, MouseEventArgs e)
