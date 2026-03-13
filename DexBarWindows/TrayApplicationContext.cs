@@ -45,9 +45,10 @@ public class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(quitItem);
 
+        _currentIcon = LoadAppIcon();
         _notifyIcon = new NotifyIcon
         {
-            Icon             = SystemIcons.Application,
+            Icon             = _currentIcon ?? SystemIcons.Application,
             Text             = "DexBar",
             ContextMenuStrip = contextMenu,
             Visible          = true
@@ -221,6 +222,23 @@ public class TrayApplicationContext : ApplicationContext
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private static Icon? LoadAppIcon()
+    {
+        // The exe's own icon (set via <ApplicationIcon> in the csproj) is always
+        // resource ID 32512 (IDI_APPLICATION alias for the first icon group).
+        var hIcon = LoadIcon(GetModuleHandle(null), (IntPtr)32512);
+        if (hIcon == IntPtr.Zero) return null;
+        var icon = (Icon)Icon.FromHandle(hIcon).Clone();
+        DestroyIcon(hIcon);
+        return icon;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetModuleHandle(string? lpModuleName);
 
     private static Color ParseHex(string hex)
     {
