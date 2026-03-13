@@ -69,6 +69,9 @@ public class GlucoseMonitor : IDisposable
     /// <summary>When state was last updated.</summary>
     public DateTime? LastUpdated { get; private set; }
 
+    /// <summary>When the next automatic refresh is scheduled.</summary>
+    public DateTime? NextRefreshDate { get; private set; }
+
     /// <summary>Loaded app settings.</summary>
     public AppSettings Settings { get; private set; }
 
@@ -280,6 +283,7 @@ public class GlucoseMonitor : IDisposable
 
     private void ScheduleTimer(TimeSpan dueTime)
     {
+        NextRefreshDate = DateTime.UtcNow + dueTime;
         _timer?.Dispose();
         _timer = new System.Threading.Timer(
             callback: async _ => await TimerTickAsync(),

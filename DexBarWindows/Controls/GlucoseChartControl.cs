@@ -23,6 +23,11 @@ public class GlucoseChartControl : UserControl
     private static readonly Color BackgroundColor = Color.FromArgb(24, 24, 26);
     private static readonly Color GridColor = Color.FromArgb(50, 50, 55);
     private static readonly Color LabelColor = Color.FromArgb(130, 130, 140);
+    private static readonly Color TooltipBg = Color.FromArgb(220, 44, 44, 48);
+
+    // Hover state
+    private GlucoseReading? _hoveredReading;
+    private PointF _hoveredPoint;
 
     public TimeRange SelectedRange
     {
@@ -35,6 +40,9 @@ public class GlucoseChartControl : UserControl
         _monitor = monitor;
         DoubleBuffered = true;
         BackColor = BackgroundColor;
+
+        MouseMove += OnChartMouseMove;
+        MouseLeave += (_, _) => { _hoveredReading = null; Invalidate(); };
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -86,6 +94,89 @@ public class GlucoseChartControl : UserControl
             DrawLine(g, readings, unit, ToX, ToY);
 
         DrawPoints(g, readings, unit, settings, ToX, ToY);
+
+        // Hover tooltip — draw last so it's on top
+        if (_hoveredReading is not null)
+            DrawTooltip(g, _hoveredReading, _hoveredPoint, readings, unit, settings);
+    }
+
+    // -------------------------------------------------------------------------
+    // Mouse hover — find nearest reading
+    // -------------------------------------------------------------------------
+
+    private void OnChartMouseMove(object? sender, MouseEventArgs e)
+    {
+        var settings = _monitor.Settings;
+        var unit = settings.Unit;
+        var readings = GetReadings();
+
+        if (readings.Count == 0)
+        {
+            if (_hoveredReading is not null) { _hoveredReading = null; Invalidate(); }
+            return;
+        }
+
+        var plotRect = new Rectangle(
+            PadLeft, PadTop,
+            Width - PadLeft - PadRight,
+            Height - PadTop - PadBottom);
+
+        if (!plotRect.Contains(e.Location))
+        {
+            if (_hoveredReading is not null) { _hoveredReading = null; Invalidate(); }
+            return;
+        }
+
+        // Reconstruct coordinate functions
+        double lowThresh  = Threshold(settings.AlertLowThresholdMgdL, unit);
+        double highThresh = Threshold(settings.AlertHighThresholdMgdL, unit);
+        var vals = readings.Select(r => DisplayVal(r, unit)).ToList();
+        double yPad = unit == GlucoseUnit.MmolL ? 0.8 : 15;
+        double minY = Math.Min(vals.Min(), lowThresh)  - yPad;
+        double maxY = Math.Max(vals.Max(), highThresh) + yPad;
+
+        var now       = DateTime.UtcNow;
+        var startTime = now - _selectedRange.Interval();
+        double xSpan  = (now - startTime).TotalSeconds;
+
+        float ToX(DateTime dt) =>
+            plotRect.Left + (float)((dt - startTime).TotalSeconds / xSpan) * plotRect.Width;
+        float ToY(double v) =>
+            plotRect.Bottom - (float)((v - minY) / (maxY - minY)) * plotRect.Height;
+
+        // Find nearest reading by pixel distance
+        GlucoseReading? nearest = null;
+        float nearestDist = float.MaxValue;
+        PointF nearestPt = default;
+
+        foreach (var r in readings)
+        {
+            float px = ToX(r.Date);
+            float py = ToY(DisplayVal(r, unit));
+            float dist = Math.Abs(e.X - px);
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = r;
+                nearestPt = new PointF(px, py);
+            }
+        }
+
+        // Only show tooltip if within 20px of a data point
+        if (nearest is not null && nearestDist <= 20)
+        {
+            if (_hoveredReading != nearest)
+            {
+                _hoveredReading = nearest;
+                _hoveredPoint = nearestPt;
+                Invalidate();
+            }
+        }
+        else if (_hoveredReading is not null)
+        {
+            _hoveredReading = null;
+            Invalidate();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -209,6 +300,87 @@ public class GlucoseChartControl : UserControl
             using var brush = new SolidBrush(color);
             g.FillEllipse(brush, x - 3f, y - 3f, 6f, 6f);
         }
+    }
+
+    private void DrawTooltip(
+        Graphics g, GlucoseReading reading, PointF pt,
+        List<GlucoseReading> readings, GlucoseUnit unit, AppSettings settings)
+    {
+        // Highlight dot
+        var dotColor = GlucoseColor(reading.Value, settings);
+        using var highlightBrush = new SolidBrush(Color.FromArgb(60, dotColor));
+        g.FillEllipse(highlightBrush, pt.X - 8f, pt.Y - 8f, 16f, 16f);
+        using var dotBrush = new SolidBrush(dotColor);
+        g.FillEllipse(dotBrush, pt.X - 4f, pt.Y - 4f, 8f, 8f);
+
+        // Build tooltip text lines
+        string valueLine = $"{reading.DisplayValue(unit)} {reading.Trend.Arrow()}";
+        string timeLine  = reading.Date.ToLocalTime().ToString("h:mm tt");
+
+        // Delta from previous reading
+        string? deltaLine = null;
+        var idx = readings.IndexOf(reading);
+        if (idx >= 0 && idx < readings.Count - 1)
+        {
+            int delta = reading.Value - readings[idx + 1].Value;
+            var sign = delta >= 0 ? "+" : "";
+            deltaLine = unit == GlucoseUnit.MmolL
+                ? $"{sign}{delta / 18.0:F1} mmol/L"
+                : $"{sign}{delta} mg/dL";
+        }
+
+        // Measure tooltip
+        using var fontValue = new Font("Segoe UI", 10f, FontStyle.Bold);
+        using var fontSmall = new Font("Segoe UI", 8f);
+        var szValue = g.MeasureString(valueLine, fontValue);
+        var szTime  = g.MeasureString(timeLine, fontSmall);
+        var szDelta = deltaLine is not null ? g.MeasureString(deltaLine, fontSmall) : SizeF.Empty;
+
+        float tipW = Math.Max(szValue.Width, Math.Max(szTime.Width, szDelta.Width)) + 16;
+        float tipH = szValue.Height + szTime.Height + (deltaLine is not null ? szDelta.Height : 0) + 12;
+
+        // Position tooltip above the point, clamped within control bounds
+        float tipX = pt.X - tipW / 2;
+        float tipY = pt.Y - tipH - 12;
+        if (tipX < PadLeft) tipX = PadLeft;
+        if (tipX + tipW > Width - PadRight) tipX = Width - PadRight - tipW;
+        if (tipY < PadTop) tipY = pt.Y + 12; // flip below if too close to top
+
+        // Draw tooltip background
+        var tipRect = new RectangleF(tipX, tipY, tipW, tipH);
+        using var bgBrush = new SolidBrush(TooltipBg);
+        using var path = RoundedRect(tipRect, 6);
+        g.FillPath(bgBrush, path);
+        using var borderPen = new Pen(Color.FromArgb(80, 255, 255, 255), 1f);
+        g.DrawPath(borderPen, path);
+
+        // Draw text
+        float textY = tipY + 4;
+        using var valueBrush = new SolidBrush(dotColor);
+        g.DrawString(valueLine, fontValue, valueBrush, tipX + 8, textY);
+        textY += szValue.Height;
+
+        if (deltaLine is not null)
+        {
+            using var deltaBrush = new SolidBrush(Color.FromArgb(180, 180, 188));
+            g.DrawString(deltaLine, fontSmall, deltaBrush, tipX + 8, textY);
+            textY += szDelta.Height;
+        }
+
+        using var timeBrush = new SolidBrush(Color.FromArgb(130, 130, 140));
+        g.DrawString(timeLine, fontSmall, timeBrush, tipX + 8, textY);
+    }
+
+    private static GraphicsPath RoundedRect(RectangleF bounds, float radius)
+    {
+        var path = new GraphicsPath();
+        float d = radius * 2;
+        path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+        path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+        path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+        path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 
     // -------------------------------------------------------------------------

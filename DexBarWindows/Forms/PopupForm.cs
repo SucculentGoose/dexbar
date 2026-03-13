@@ -18,6 +18,7 @@ public class PopupForm : Form
     private readonly GlucoseMonitor _monitor;
     private Point _dragStart;
     private bool  _dragging;
+    private readonly System.Windows.Forms.Timer _tickTimer;
 
     // ── Header ──────────────────────────────────────────────────────────────
     private readonly Panel        _pnlStale;
@@ -25,6 +26,7 @@ public class PopupForm : Form
     private readonly Label        _lblTrend;
     private readonly Label        _lblStatus;
     private readonly Label        _lblUpdated;
+    private readonly Label        _lblCountdown;
 
     // ── Chart ────────────────────────────────────────────────────────────────
     private readonly GlucoseChartControl _chart;
@@ -123,6 +125,15 @@ public class PopupForm : Form
             Margin    = new Padding(0, 2, 0, 0),
             TextAlign = ContentAlignment.TopRight
         };
+        _lblCountdown = new Label
+        {
+            Text      = "",
+            ForeColor = TextTertiary,
+            Font      = new Font("Segoe UI", 8f),
+            AutoSize  = true,
+            Margin    = new Padding(0, 2, 0, 0),
+            TextAlign = ContentAlignment.TopRight
+        };
 
         // Left: value + trend stacked vertically
         var flowLeft = new FlowLayoutPanel
@@ -149,6 +160,7 @@ public class PopupForm : Form
         };
         flowRight.Controls.Add(_lblStatus);
         flowRight.Controls.Add(_lblUpdated);
+        flowRight.Controls.Add(_lblCountdown);
 
         pnlHeader.Controls.Add(flowRight);   // Right must be added first for Dock.Right
         pnlHeader.Controls.Add(flowLeft);
@@ -246,42 +258,53 @@ public class PopupForm : Form
             TextAlign = ContentAlignment.TopLeft
         };
 
-        // ── Actions ──────────────────────────────────────────────────────────
+        // ── Actions — three equal-width buttons separated by dividers ───────
         var pnlActions = new Panel
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
             Height    = 46,
-            Padding   = new Padding(0, 6, 0, 6)
+            Padding   = new Padding(12, 6, 12, 6)
         };
 
-        var btnRefresh = MakeActionButton("↺  Refresh Now");
-        btnRefresh.Click += async (_, _) => await _monitor.RefreshNowAsync();
+        var tblActions = new TableLayoutPanel
+        {
+            Dock        = DockStyle.Fill,
+            ColumnCount = 5,
+            RowCount    = 1,
+            BackColor   = BgColor,
+            Margin      = new Padding(0),
+            Padding     = new Padding(0)
+        };
+        int btnWidth = (FormWidth - 24 - 2) / 3;  // 24 padding, 2 dividers
+        tblActions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, btnWidth));
+        tblActions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1));
+        tblActions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, btnWidth));
+        tblActions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1));
+        tblActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        tblActions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
+        var btnRefresh  = MakeActionButton("↺  Refresh Now");
         var btnSettings = MakeActionButton("⚙  Settings…");
-        btnSettings.Click += (_, _) =>
-        {
-            Hide();
-            OpenSettingsRequested?.Invoke();
-        };
+        var btnQuit     = MakeActionButton("✕  Quit");
 
-        var btnQuit = MakeActionButton("✕  Quit");
-        btnQuit.Click += (_, _) => Application.Exit();
+        btnRefresh.Dock  = DockStyle.Fill;
+        btnSettings.Dock = DockStyle.Fill;
+        btnQuit.Dock     = DockStyle.Fill;
 
-        var flowActions = new FlowLayoutPanel
-        {
-            Dock          = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents  = false,
-            BackColor     = BgColor,
-            Padding       = new Padding(8, 0, 8, 0)
-        };
-        flowActions.Controls.Add(btnRefresh);
-        flowActions.Controls.Add(MakeActionDivider());
-        flowActions.Controls.Add(btnSettings);
-        flowActions.Controls.Add(MakeActionDivider());
-        flowActions.Controls.Add(btnQuit);
-        pnlActions.Controls.Add(flowActions);
+        btnRefresh.Click  += async (_, _) => await _monitor.RefreshNowAsync();
+        btnSettings.Click += (_, _) => { Hide(); OpenSettingsRequested?.Invoke(); };
+        btnQuit.Click     += (_, _) => Application.Exit();
+
+        var div1 = new Panel { BackColor = DividerColor, Dock = DockStyle.Fill, Margin = new Padding(0) };
+        var div2 = new Panel { BackColor = DividerColor, Dock = DockStyle.Fill, Margin = new Padding(0) };
+
+        tblActions.Controls.Add(btnRefresh,  0, 0);
+        tblActions.Controls.Add(div1,        1, 0);
+        tblActions.Controls.Add(btnSettings, 2, 0);
+        tblActions.Controls.Add(div2,        3, 0);
+        tblActions.Controls.Add(btnQuit,     4, 0);
+        pnlActions.Controls.Add(tblActions);
 
         // ── Assemble (reverse order for Dock.Top stacking) ───────────────────
         var layout = new Panel
@@ -321,6 +344,11 @@ public class PopupForm : Form
         // Must be applied recursively because DockStyle.Fill child panels
         // cover the entire form surface and absorb all mouse events.
         MakeDraggable(this);
+
+        // 1-second timer to keep countdown + "updated" labels fresh
+        _tickTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        _tickTimer.Tick += (_, _) => UpdateTimerLabels();
+        _tickTimer.Start();
 
         UpdateDisplay();
         _monitor.OnUpdate += UpdateDisplay;
@@ -422,6 +450,20 @@ public class PopupForm : Form
             _                      => ("○ Disconnected", TextSecondary)
         };
 
+        UpdateTimerLabels();
+
+        // TiR
+        UpdateTiR(settings);
+
+        // Chart
+        _chart.Invalidate();
+    }
+
+    private void UpdateTimerLabels()
+    {
+        if (InvokeRequired) { Invoke(UpdateTimerLabels); return; }
+
+        // "X ago" label
         if (_monitor.LastUpdated is DateTime updated)
         {
             var ago = DateTime.UtcNow - updated;
@@ -434,11 +476,21 @@ public class PopupForm : Form
             _lblUpdated.Text = "";
         }
 
-        // TiR
-        UpdateTiR(settings);
-
-        // Chart
-        _chart.Invalidate();
+        // "Next: Xm Xs" countdown
+        if (_monitor.NextRefreshDate is DateTime next)
+        {
+            var remaining = next - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                _lblCountdown.Text = "Next: now";
+            else if (remaining.TotalMinutes >= 1)
+                _lblCountdown.Text = $"Next: {(int)remaining.TotalMinutes}m {remaining.Seconds}s";
+            else
+                _lblCountdown.Text = $"Next: {remaining.Seconds}s";
+        }
+        else
+        {
+            _lblCountdown.Text = "";
+        }
     }
 
     private void UpdateTiR(AppSettings settings)
@@ -664,7 +716,11 @@ public class PopupForm : Form
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
+            _tickTimer.Stop();
+            _tickTimer.Dispose();
             _monitor.OnUpdate -= UpdateDisplay;
+        }
         base.Dispose(disposing);
     }
 }
