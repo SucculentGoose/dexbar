@@ -326,15 +326,14 @@ public class PopupForm : Form
         if (e.Button == MouseButtons.Left)
         {
             _dragging  = true;
-            // Convert to screen coords so movement stays correct as the form moves
-            _dragStart = PointToScreen(((Control)sender!).PointToScreen(e.Location));
+            _dragStart = Cursor.Position;
         }
     }
 
     private void OnDragMove(object? sender, MouseEventArgs e)
     {
         if (!_dragging) return;
-        var current = PointToScreen(((Control)sender!).PointToScreen(e.Location));
+        var current = Cursor.Position;
         Location = new Point(
             Left + current.X - _dragStart.X,
             Top  + current.Y - _dragStart.Y);
