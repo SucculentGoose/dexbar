@@ -126,6 +126,13 @@ public class PopupForm : Form
         pnlHeader.Controls.Add(_lblStatus);
         pnlHeader.Controls.Add(_lblUpdated);
 
+        // ── Chart (must come before BuildRangeButtons which reads _chart.SelectedRange) ──
+        _chart = new GlucoseChartControl(_monitor)
+        {
+            Dock   = DockStyle.Top,
+            Height = 130
+        };
+
         // ── Chart range buttons ──────────────────────────────────────────────
         _pnlRangeButtons = new Panel
         {
@@ -135,13 +142,6 @@ public class PopupForm : Form
             Padding   = new Padding(16, 6, 16, 0)
         };
         BuildRangeButtons();
-
-        // ── Chart ────────────────────────────────────────────────────────────
-        _chart = new GlucoseChartControl(_monitor)
-        {
-            Dock   = DockStyle.Top,
-            Height = 130
-        };
 
         // ── TiR header ───────────────────────────────────────────────────────
         _lblTirHeader = new Label
