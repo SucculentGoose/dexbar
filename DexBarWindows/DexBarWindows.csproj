@@ -9,5 +9,6 @@
     <RootNamespace>DexBarWindows</RootNamespace>
     <Version>1.5.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>
