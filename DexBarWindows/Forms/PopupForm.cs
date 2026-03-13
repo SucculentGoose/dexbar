@@ -59,7 +59,7 @@ public class PopupForm : Form
         TopMost         = true;
         BackColor       = BgColor;
         Width           = FormWidth;
-        Height          = 464;   // stale(28)+header(92)+div+rangeBtns(38)+chart(140)+div+tir(118)+div+actions(46)
+        Height          = 482;   // stale(28)+header(100)+div+rangeBtns(38)+chart(140)+div+tir(128)+div+actions(46)
 
         // ── Stale warning banner (always in layout; colour-toggles when stale) ─
         _pnlStale = new Panel
@@ -80,12 +80,12 @@ public class PopupForm : Form
         };
         _pnlStale.Controls.Add(_lblStaleText);
 
-        // ── Header panel ────────────────────────────────────────────────────
+        // ── Header panel — two-column TableLayoutPanel so labels flow naturally ─
         var pnlHeader = new Panel
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 92,
+            Height    = 100,
             Padding   = new Padding(16, 12, 16, 12)
         };
 
@@ -95,38 +95,63 @@ public class PopupForm : Form
             ForeColor = TextPrimary,
             Font      = new Font("Segoe UI", 30f, FontStyle.Bold),
             AutoSize  = true,
-            Location  = new Point(16, 10)
+            Margin    = new Padding(0)
         };
-
         _lblTrend = new Label
         {
             Text      = "Loading...",
             ForeColor = TextSecondary,
             Font      = new Font("Segoe UI", 10f),
             AutoSize  = true,
-            Location  = new Point(16, 52)
+            Margin    = new Padding(0, 2, 0, 0)
         };
-
         _lblStatus = new Label
         {
             Text      = "Disconnected",
             ForeColor = TextSecondary,
             Font      = new Font("Segoe UI", 8.5f),
-            AutoSize  = true
+            AutoSize  = true,
+            Margin    = new Padding(0),
+            TextAlign = ContentAlignment.TopRight
         };
-
         _lblUpdated = new Label
         {
             Text      = "",
             ForeColor = TextTertiary,
             Font      = new Font("Segoe UI", 8f),
-            AutoSize  = true
+            AutoSize  = true,
+            Margin    = new Padding(0, 2, 0, 0),
+            TextAlign = ContentAlignment.TopRight
         };
 
-        pnlHeader.Controls.Add(_lblValue);
-        pnlHeader.Controls.Add(_lblTrend);
-        pnlHeader.Controls.Add(_lblStatus);
-        pnlHeader.Controls.Add(_lblUpdated);
+        // Left: value + trend stacked vertically
+        var flowLeft = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents  = false,
+            AutoSize      = true,
+            BackColor     = Color.Transparent,
+            Dock          = DockStyle.Left,
+            Padding       = new Padding(0)
+        };
+        flowLeft.Controls.Add(_lblValue);
+        flowLeft.Controls.Add(_lblTrend);
+
+        // Right: status + updated stacked vertically, right-aligned
+        var flowRight = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents  = false,
+            AutoSize      = true,
+            BackColor     = Color.Transparent,
+            Dock          = DockStyle.Right,
+            Padding       = new Padding(0),
+        };
+        flowRight.Controls.Add(_lblStatus);
+        flowRight.Controls.Add(_lblUpdated);
+
+        pnlHeader.Controls.Add(flowRight);   // Right must be added first for Dock.Right
+        pnlHeader.Controls.Add(flowLeft);
 
         // ── Chart (must come before BuildRangeButtons which reads _chart.SelectedRange) ──
         _chart = new GlucoseChartControl(_monitor)
@@ -197,10 +222,11 @@ public class PopupForm : Form
         _lblInRangePct = MakeTirPctLabel("✓ 0%", ContentAlignment.MiddleCenter);
         _lblHighPct = MakeTirPctLabel("↑ 0%", ContentAlignment.MiddleRight);
 
+        int tirColWidth = (FormWidth - 32) / 3;
         _lblLowPct.Dock    = DockStyle.Left;
-        _lblLowPct.Width   = (FormWidth - 32) / 3;
+        _lblLowPct.Width   = tirColWidth;
         _lblInRangePct.Dock = DockStyle.Left;
-        _lblInRangePct.Width = (FormWidth - 32) / 3;
+        _lblInRangePct.Width = tirColWidth;
         _lblHighPct.Dock   = DockStyle.Fill;
 
         pnlTirPcts.Controls.Add(_lblHighPct);
@@ -408,20 +434,11 @@ public class PopupForm : Form
             _lblUpdated.Text = "";
         }
 
-        // Reposition right-side labels
-        PositionHeaderRightLabels();
-
         // TiR
         UpdateTiR(settings);
 
         // Chart
         _chart.Invalidate();
-    }
-
-    private void PositionHeaderRightLabels()
-    {
-        _lblStatus.Location = new Point(FormWidth - 16 - _lblStatus.PreferredWidth, 14);
-        _lblUpdated.Location = new Point(FormWidth - 16 - _lblUpdated.PreferredWidth, 32);
     }
 
     private void UpdateTiR(AppSettings settings)
