@@ -61,3 +61,11 @@ Pods/
 
 # Git worktrees
 .worktrees/
+
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
