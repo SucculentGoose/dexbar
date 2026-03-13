@@ -47,7 +47,7 @@ public class PopupForm : Form
     private static readonly Color TextPrimary  = Color.FromArgb(240, 240, 242);
     private static readonly Color TextSecondary = Color.FromArgb(160, 160, 168);
     private static readonly Color TextTertiary  = Color.FromArgb(100, 100, 108);
-    private const int FormWidth = 340;
+    private const int FormWidth = 380;
 
     public PopupForm(GlucoseMonitor monitor)
     {
@@ -59,7 +59,7 @@ public class PopupForm : Form
         TopMost         = true;
         BackColor       = BgColor;
         Width           = FormWidth;
-        Height          = 420;   // stale(28)+header(80)+div+rangeBtns(34)+chart(130)+div+tir(103)+div+actions(40)
+        Height          = 464;   // stale(28)+header(92)+div+rangeBtns(38)+chart(140)+div+tir(118)+div+actions(46)
 
         // ── Stale warning banner (always in layout; colour-toggles when stale) ─
         _pnlStale = new Panel
@@ -85,8 +85,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 80,
-            Padding   = new Padding(16, 10, 16, 10)
+            Height    = 92,
+            Padding   = new Padding(16, 12, 16, 12)
         };
 
         _lblValue = new Label
@@ -132,7 +132,7 @@ public class PopupForm : Form
         _chart = new GlucoseChartControl(_monitor)
         {
             Dock   = DockStyle.Top,
-            Height = 130
+            Height = 140
         };
 
         // ── Chart range buttons ──────────────────────────────────────────────
@@ -140,8 +140,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 34,
-            Padding   = new Padding(16, 6, 16, 0)
+            Height    = 38,
+            Padding   = new Padding(16, 8, 16, 0)
         };
         BuildRangeButtons();
 
@@ -153,8 +153,8 @@ public class PopupForm : Form
             Font      = new Font("Segoe UI", 8.5f, FontStyle.Bold),
             AutoSize  = false,
             Dock      = DockStyle.Top,
-            Height    = 20,
-            Padding   = new Padding(16, 4, 0, 0)
+            Height    = 26,
+            Padding   = new Padding(16, 8, 0, 0)
         };
 
         // ── Stats range buttons ──────────────────────────────────────────────
@@ -162,8 +162,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 30,
-            Padding   = new Padding(16, 4, 16, 0)
+            Height    = 34,
+            Padding   = new Padding(16, 6, 16, 0)
         };
         BuildStatsRangeButtons();
 
@@ -178,8 +178,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 12,
-            Padding   = new Padding(16, 2, 16, 0)
+            Height    = 16,
+            Padding   = new Padding(16, 4, 16, 0)
         };
         _tirBar.Dock    = DockStyle.Fill;
         pnlTirBarWrapper.Controls.Add(_tirBar);
@@ -189,8 +189,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 22,
-            Padding   = new Padding(16, 2, 16, 0)
+            Height    = 26,
+            Padding   = new Padding(16, 4, 16, 0)
         };
 
         _lblLowPct = MakeTirPctLabel("↓ 0%", ContentAlignment.MiddleLeft);
@@ -212,11 +212,11 @@ public class PopupForm : Form
         {
             Text      = "",
             ForeColor = TextTertiary,
-            Font      = new Font("Segoe UI", 8f),
+            Font      = new Font("Segoe UI", 8.5f),
             AutoSize  = false,
             Dock      = DockStyle.Top,
-            Height    = 20,
-            Padding   = new Padding(16, 2, 16, 0),
+            Height    = 24,
+            Padding   = new Padding(16, 4, 16, 0),
             TextAlign = ContentAlignment.TopLeft
         };
 
@@ -225,8 +225,8 @@ public class PopupForm : Form
         {
             BackColor = BgColor,
             Dock      = DockStyle.Top,
-            Height    = 40,
-            Padding   = new Padding(0, 4, 0, 4)
+            Height    = 46,
+            Padding   = new Padding(0, 6, 0, 6)
         };
 
         var btnRefresh = MakeActionButton("↺  Refresh Now");
