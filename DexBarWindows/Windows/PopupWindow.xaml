@@ -1,0 +1,232 @@
+<ui:FluentWindow
+    x:Class="DexBarWindows.Windows.PopupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:controls="clr-namespace:DexBarWindows.Controls"
+    WindowStyle="None"
+    WindowBackdropType="Acrylic"
+    WindowCornerPreference="Round"
+    AllowsTransparency="False"
+    Width="380"
+    Height="482"
+    Topmost="True"
+    ShowInTaskbar="False"
+    ResizeMode="NoResize"
+    TextElement.Foreground="#F0F0F2"
+    FontFamily="Segoe UI">
+
+    <Grid Background="#1C1C1E">
+
+        <DockPanel LastChildFill="True">
+
+            <!-- 1. Stale banner (28px) -->
+            <Border x:Name="StalePanel"
+                    DockPanel.Dock="Top"
+                    Height="28"
+                    Background="#FF8C00"
+                    Visibility="Collapsed">
+                <TextBlock Text="⚠  No new readings for 20+ min"
+                           Foreground="White"
+                           FontFamily="Segoe UI"
+                           FontSize="9"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+            </Border>
+
+            <!-- 2. Header (100px) -->
+            <Border DockPanel.Dock="Top"
+                    Height="100"
+                    Padding="16,12,16,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: glucose value + trend -->
+                    <StackPanel Grid.Column="0"
+                                Orientation="Vertical"
+                                VerticalAlignment="Center">
+                        <TextBlock x:Name="GlucoseValueLabel"
+                                   Text="--"
+                                   FontFamily="Segoe UI"
+                                   FontSize="30"
+                                   FontWeight="Bold"
+                                   Foreground="#F0F0F2" />
+                        <TextBlock x:Name="TrendLabel"
+                                   Text="Loading..."
+                                   FontFamily="Segoe UI"
+                                   FontSize="10"
+                                   Foreground="#A0A0A8"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <!-- Right: status + updated + countdown -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Vertical"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <TextBlock x:Name="StatusLabel"
+                                   Text="Disconnected"
+                                   FontFamily="Segoe UI"
+                                   FontSize="8.5"
+                                   Foreground="#A0A0A8"
+                                   TextAlignment="Right" />
+                        <TextBlock x:Name="UpdatedLabel"
+                                   Text=""
+                                   FontFamily="Segoe UI"
+                                   FontSize="8"
+                                   Foreground="#64646C"
+                                   TextAlignment="Right"
+                                   Margin="0,2,0,0" />
+                        <TextBlock x:Name="CountdownLabel"
+                                   Text=""
+                                   FontFamily="Segoe UI"
+                                   FontSize="8"
+                                   Foreground="#64646C"
+                                   TextAlignment="Right"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 3. Divider -->
+            <Rectangle DockPanel.Dock="Top" Height="1" Fill="#3A3A3E" />
+
+            <!-- 4. Chart range buttons (38px) -->
+            <Border DockPanel.Dock="Top" Height="38" Padding="16,8,16,0">
+                <StackPanel x:Name="ChartRangeFlow"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center" />
+            </Border>
+
+            <!-- 5. GlucoseChartControl host (140px) -->
+            <ContentControl x:Name="ChartHost"
+                            DockPanel.Dock="Top"
+                            Height="140" />
+
+            <!-- 6. Divider -->
+            <Rectangle DockPanel.Dock="Top" Height="1" Fill="#3A3A3E" />
+
+            <!-- 7. TiR header (26px) -->
+            <Border DockPanel.Dock="Top" Height="26" Padding="16,8,0,0">
+                <TextBlock x:Name="TirHeaderLabel"
+                           Text="Time in Range"
+                           FontFamily="Segoe UI"
+                           FontSize="8.5"
+                           FontWeight="Bold"
+                           Foreground="#A0A0A8"
+                           VerticalAlignment="Top" />
+            </Border>
+
+            <!-- 8. Stats range buttons (34px) -->
+            <Border DockPanel.Dock="Top" Height="34" Padding="16,6,16,0">
+                <StackPanel x:Name="StatsRangeFlow"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center" />
+            </Border>
+
+            <!-- 9. TiR bar (16px with 4px top padding, 16px horizontal padding) -->
+            <Border DockPanel.Dock="Top" Height="16" Padding="16,4,16,0">
+                <controls:TirBarControl x:Name="TirBar" />
+            </Border>
+
+            <!-- 10. TiR percentages (26px) -->
+            <Grid DockPanel.Dock="Top" Height="26" Margin="16,4,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="LowPctLabel"
+                           Grid.Column="0"
+                           Text="↓ 0%"
+                           FontFamily="Segoe UI"
+                           FontSize="8.5"
+                           Foreground="#A0A0A8"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center" />
+                <TextBlock x:Name="InRangePctLabel"
+                           Grid.Column="1"
+                           Text="✓ 0%"
+                           FontFamily="Segoe UI"
+                           FontSize="8.5"
+                           Foreground="#A0A0A8"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+                <TextBlock x:Name="HighPctLabel"
+                           Grid.Column="2"
+                           Text="↑ 0%"
+                           FontFamily="Segoe UI"
+                           FontSize="8.5"
+                           Foreground="#A0A0A8"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- 11. GMI label (24px) -->
+            <Border DockPanel.Dock="Top" Height="24" Padding="16,4,16,0">
+                <TextBlock x:Name="GmiLabel"
+                           Text=""
+                           FontFamily="Segoe UI"
+                           FontSize="8.5"
+                           Foreground="#64646C"
+                           VerticalAlignment="Top" />
+            </Border>
+
+            <!-- 12. Divider -->
+            <Rectangle DockPanel.Dock="Top" Height="1" Fill="#3A3A3E" />
+
+            <!-- 13. Action buttons (46px) -->
+            <Border DockPanel.Dock="Top" Height="46" Padding="12,6,12,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="1" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="1" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="RefreshButton"
+                            Grid.Column="0"
+                            Content="↺  Refresh Now"
+                            FontFamily="Segoe UI"
+                            FontSize="9"
+                            Foreground="#F0F0F2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand" />
+
+                    <Rectangle Grid.Column="1" Fill="#3A3A3E" Margin="0,5,0,5" />
+
+                    <Button x:Name="SettingsButton"
+                            Grid.Column="2"
+                            Content="⚙  Settings…"
+                            FontFamily="Segoe UI"
+                            FontSize="9"
+                            Foreground="#F0F0F2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand" />
+
+                    <Rectangle Grid.Column="3" Fill="#3A3A3E" Margin="0,5,0,5" />
+
+                    <Button x:Name="QuitButton"
+                            Grid.Column="4"
+                            Content="✕  Quit"
+                            FontFamily="Segoe UI"
+                            FontSize="9"
+                            Foreground="#F0F0F2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand" />
+                </Grid>
+            </Border>
+
+        </DockPanel>
+
+    </Grid>
+
+</ui:FluentWindow>

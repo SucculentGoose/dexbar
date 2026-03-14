@@ -1,0 +1,14 @@
+<UserControl x:Class="DexBarWindows.Controls.TirBarControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="RootGrid" ClipToBounds="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="LowColumn" Width="0*" />
+            <ColumnDefinition x:Name="InRangeColumn" Width="0*" />
+            <ColumnDefinition x:Name="HighColumn" Width="0*" />
+        </Grid.ColumnDefinitions>
+        <Border x:Name="LowBorder" Grid.Column="0" CornerRadius="4,0,0,4" />
+        <Border x:Name="InRangeBorder" Grid.Column="1" />
+        <Border x:Name="HighBorder" Grid.Column="2" CornerRadius="0,4,4,0" />
+    </Grid>
+</UserControl>
