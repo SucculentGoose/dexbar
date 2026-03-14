@@ -69,3 +69,6 @@ out/
 *.user
 *.suo
 .vs/
+
+
+.superpowers
