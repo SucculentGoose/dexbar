@@ -1,7 +1,11 @@
-#if canImport(CGtk3)
-import CGtk3
+#if canImport(CGtk4)
+import CGtk4
 import DexBarCore
 import Foundation
+
+#if canImport(CGtk4LayerShell)
+import CGtk4LayerShell
+#endif
 
 /// A small borderless always-on-top floating window showing the current glucose
 /// reading in large text. Persists on screen like a HUD overlay.
@@ -29,7 +33,7 @@ final class StatusOverlay {
     func toggle() {
         guard let win = window else { return }
         if gtk_widget_is_visible(win) != 0 {
-            gtk_widget_hide(win)
+            gtk_widget_set_visible(win, 0)
             isVisible = false
         } else {
             show()
@@ -75,11 +79,11 @@ final class StatusOverlay {
         gtk_label_set_markup(asLabel(valueLabel), markup)
 
         if deltaText.isEmpty {
-            gtk_widget_hide(deltaLabel)
+            gtk_widget_set_visible(deltaLabel, 0)
         } else {
             let deltaMarkup = "<span font='11' color='#aaaaaa'>\(deltaText)</span>"
             gtk_label_set_markup(asLabel(deltaLabel), deltaMarkup)
-            gtk_widget_show(deltaLabel)
+            gtk_widget_set_visible(deltaLabel, 1)
         }
     }
 
@@ -88,36 +92,15 @@ final class StatusOverlay {
     private func show() {
         guard let win = window else { return }
         update()
-        gtk_widget_show_all(win)
-        positionWindow()
+        gtk_widget_set_visible(win, 1)
         isVisible = true
     }
 
-    private func positionWindow() {
-        guard let win = window else { return }
-        // Position at top-right corner of primary screen with a small margin
-        let screen = gdk_screen_get_default()
-        let screenWidth  = gdk_screen_get_width(screen)
-        let screenHeight = gdk_screen_get_height(screen)
-        _ = screenHeight  // suppress unused warning
-
-        var w: gint = 0, h: gint = 0
-        gtk_window_get_size(asWindow(win), &w, &h)
-
-        let margin: gint = 8
-        let x = screenWidth - w - margin
-        let y = margin + 30  // leave room for panel at top
-        gtk_window_move(asWindow(win), x, y)
-    }
-
     private func buildWindow() {
-        window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
+        window = gtk_window_new()
         guard let win = window else { return }
 
         gtk_window_set_decorated(asWindow(win), 0)
-        gtk_window_set_keep_above(asWindow(win), 1)
-        gtk_window_set_skip_taskbar_hint(asWindow(win), 1)
-        gtk_window_set_skip_pager_hint(asWindow(win), 1)
         gtk_window_set_resizable(asWindow(win), 0)
         gtk_window_set_title(asWindow(win), "DexBar Overlay")
         gtkSetAppIcon(win)
@@ -125,27 +108,39 @@ final class StatusOverlay {
         // Transparent-ish dark background via opacity
         gtk_widget_set_opacity(win, 0.85)
 
+#if canImport(CGtk4LayerShell)
+        // Use layer shell for proper overlay positioning on Wayland
+        gtk_layer_init_for_window(asWindow(win))
+        gtk_layer_set_layer(asWindow(win), GTK_LAYER_SHELL_LAYER_OVERLAY)
+        gtk_layer_set_anchor(asWindow(win), GTK_LAYER_SHELL_EDGE_TOP, 1)
+        gtk_layer_set_anchor(asWindow(win), GTK_LAYER_SHELL_EDGE_RIGHT, 1)
+        gtk_layer_set_margin(asWindow(win), GTK_LAYER_SHELL_EDGE_TOP, 38)
+        gtk_layer_set_margin(asWindow(win), GTK_LAYER_SHELL_EDGE_RIGHT, 8)
+#endif
+
         let vbox = gtkBox(orientation: GTK_ORIENTATION_VERTICAL, spacing: 2)
         gtk_widget_set_margin_start(vbox, 10)
         gtk_widget_set_margin_end(vbox, 10)
         gtk_widget_set_margin_top(vbox, 6)
         gtk_widget_set_margin_bottom(vbox, 6)
-        containerAdd(win, vbox)
+        gtk_window_set_child(asWindow(win), vbox)
 
         valueLabel = gtk_label_new("---")
         gtk_label_set_markup(asLabel(valueLabel),
             "<span font='24' weight='bold' color='#888888'>---</span>")
-        packStart(vbox, valueLabel)
+        gtkBoxAppend(vbox, valueLabel)
 
         deltaLabel = gtk_label_new("")
-        packStart(vbox, deltaLabel)
-        gtk_widget_hide(deltaLabel)
+        gtkBoxAppend(vbox, deltaLabel)
+        gtk_widget_set_visible(deltaLabel, 0)
 
-        // Click anywhere to toggle popup
-        gtk_widget_add_events(win, gint(GDK_BUTTON_PRESS_MASK.rawValue))
+        // Click anywhere to dismiss — use GtkGestureClick event controller
+        let clickCtrl = gtk_gesture_click_new()
+        gtk_widget_add_controller(win, clickCtrl)
+
         gtkConnectDeleteHide(win) { [weak self] in
             self?.isVisible = false
-            if let w = self?.window { gtk_widget_hide(w) }
+            if let w = self?.window { gtk_widget_set_visible(w, 0) }
         }
     }
 }

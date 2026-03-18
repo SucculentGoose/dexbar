@@ -1,0 +1,5 @@
+module CDbusmenu [system] {
+    header "/usr/include/libdbusmenu-glib-0.4/libdbusmenu-glib/dbusmenu-glib.h"
+    link "dbusmenu-glib"
+    export *
+}

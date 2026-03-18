@@ -5,6 +5,17 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-18
+
+### Changed (Linux)
+- **Migrated from GTK3 to GTK4** — all UI components updated to GTK4 APIs (event controllers, draw functions, child management)
+- **Replaced libayatana-appindicator3 with D-Bus StatusNotifierItem** — tray icon now uses GDBus directly with libdbusmenu-glib for the menu, removing the GTK3-only appindicator dependency
+- **Wayland overlay support** — StatusOverlay uses gtk4-layer-shell for proper positioning on Wayland compositors
+- Updated dependencies: `libgtk-4-dev`, `libdbusmenu-glib-dev`, `libgtk4-layer-shell-dev` (replaces `libgtk-3-dev`, `libayatana-appindicator3-dev`)
+
+### Fixed (Linux)
+- Fixed check button state not being read/written correctly (GTK4 `GtkCheckButton` is no longer a `GtkToggleButton` subclass)
+
 ## [1.6.0] - 2026-03-18
 
 ### Added (Windows)

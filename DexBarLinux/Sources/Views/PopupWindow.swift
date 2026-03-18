@@ -1,10 +1,10 @@
-#if canImport(CGtk3)
-import CGtk3
+#if canImport(CGtk4)
+import CGtk4
 import DexBarCore
 import Foundation
 
 /// A popup window matching the macOS DexBar dropdown: glucose reading, chart,
-/// time-in-range bar, stats, and action buttons. Rendered with GTK3 + Cairo.
+/// time-in-range bar, stats, and action buttons. Rendered with GTK4 + Cairo.
 @MainActor
 final class PopupWindow {
     private var window: GWidget?
@@ -58,12 +58,12 @@ final class PopupWindow {
     func toggle() {
         guard let win = window else { return }
         if gtk_widget_is_visible(win) != 0 {
-            gtk_widget_hide(win)
+            gtk_widget_set_visible(win, 0)
             stopTick()
         } else {
             update()
-            gtk_widget_show_all(win)
-            // Hide conditional elements after show_all
+            gtk_widget_set_visible(win, 1)
+            // Hide conditional elements after making visible
             updateStaleBar()
             updateSpanWarning()
             gtk_window_present(asWindow(win))
@@ -72,7 +72,7 @@ final class PopupWindow {
     }
 
     func update() {
-        guard let monitor else { return }
+        guard let _ = monitor else { return }
         // Allow update even when hidden so data is ready when toggled open
         updateHeader()
         updateChart()
@@ -103,7 +103,7 @@ final class PopupWindow {
     // MARK: - Build Window
 
     private func buildWindow() {
-        window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
+        window = gtk_window_new()
         guard let win = window else { return }
         gtk_window_set_title(asWindow(win), "DexBar")
         gtkSetAppIcon(win)
@@ -112,19 +112,19 @@ final class PopupWindow {
         gtkAddClass(win, "dexbar-popup")
 
         gtkConnectDeleteHide(win) { [weak self] in
-            if let w = self?.window { gtk_widget_hide(w) }
+            if let w = self?.window { gtk_widget_set_visible(w, 0) }
         }
 
         let vbox = gtkBox(orientation: GTK_ORIENTATION_VERTICAL, spacing: 0)
-        containerAdd(win, vbox)
+        gtk_window_set_child(asWindow(win), vbox)
 
         buildStaleBar(into: vbox)
         buildCurrentReading(into: vbox)
-        packStart(vbox, gtkSeparator())
+        gtkBoxAppend(vbox, gtkSeparator())
         buildChartSection(into: vbox)
-        packStart(vbox, gtkSeparator())
+        gtkBoxAppend(vbox, gtkSeparator())
         buildTiRSection(into: vbox)
-        packStart(vbox, gtkSeparator())
+        gtkBoxAppend(vbox, gtkSeparator())
         buildActionsSection(into: vbox)
     }
 
@@ -135,21 +135,21 @@ final class PopupWindow {
         gtkAddClass(staleBar, "stale-bar")
         let icon = gtkLabel("⚠")
         let text = gtkLabel("No new readings for 20+ min")
-        packStart(staleBar, icon)
-        packStart(staleBar, text)
+        gtkBoxAppend(staleBar, icon)
+        gtkBoxAppend(staleBar, text)
         gtk_widget_set_margin_start(staleBar, 12)
         gtk_widget_set_margin_end(staleBar, 12)
         gtk_widget_set_margin_top(staleBar, 6)
         gtk_widget_set_margin_bottom(staleBar, 6)
-        packStart(vbox, staleBar)
+        gtkBoxAppend(vbox, staleBar)
     }
 
     private func updateStaleBar() {
         guard let monitor, let bar = staleBar else { return }
         if monitor.isStale {
-            gtk_widget_show_all(bar)
+            gtk_widget_set_visible(bar, 1)
         } else {
-            gtk_widget_hide(bar)
+            gtk_widget_set_visible(bar, 0)
         }
     }
 
@@ -168,9 +168,9 @@ final class PopupWindow {
         gtk_label_set_xalign(asLabel(valueLabel), 0)
         trendLabel = gtkLabel("")
         gtk_label_set_xalign(asLabel(trendLabel), 0)
-        packStart(leftBox, valueLabel)
-        packStart(leftBox, trendLabel)
-        packStart(hbox, leftBox, expand: true, fill: true)
+        gtkBoxAppend(leftBox, valueLabel)
+        gtkBoxAppend(leftBox, trendLabel)
+        gtkBoxAppend(hbox, leftBox, expand: true, fill: true)
 
         // Right side: status, updated, next
         let rightBox = gtkBox(orientation: GTK_ORIENTATION_VERTICAL, spacing: 2)
@@ -180,12 +180,12 @@ final class PopupWindow {
         gtk_label_set_xalign(asLabel(updatedLabel), 1)
         nextLabel = gtkLabel("")
         gtk_label_set_xalign(asLabel(nextLabel), 1)
-        packStart(rightBox, statusBadge)
-        packStart(rightBox, updatedLabel)
-        packStart(rightBox, nextLabel)
-        packStart(hbox, rightBox, expand: false, fill: false)
+        gtkBoxAppend(rightBox, statusBadge)
+        gtkBoxAppend(rightBox, updatedLabel)
+        gtkBoxAppend(rightBox, nextLabel)
+        gtkBoxAppend(hbox, rightBox)
 
-        packStart(vbox, hbox)
+        gtkBoxAppend(vbox, hbox)
     }
 
     private func updateHeader() {
@@ -279,7 +279,7 @@ final class PopupWindow {
             gtkAddClass(btn, "range-btn")
             gtk_widget_set_size_request(btn, 50, 28)
             chartRangeButtons[range] = btn
-            packStart(rangeBox, btn, expand: true, fill: true)
+            gtkBoxAppend(rangeBox, btn, expand: true, fill: true)
 
             gtkConnect(btn, signal: "toggled") { [weak self] in
                 guard let self, let monitor = self.monitor else { return }
@@ -291,29 +291,29 @@ final class PopupWindow {
                 }
             }
         }
-        packStart(section, rangeBox)
+        gtkBoxAppend(section, rangeBox)
 
         // Chart drawing area
         chartArea = gtk_drawing_area_new()
         gtk_widget_set_size_request(chartArea, 280, 140)
-        gtkConnectDraw(chartArea) { [weak self] cr in
+        gtkSetDrawFunc(chartArea) { [weak self] cr in
             self?.drawChart(cr: cr)
         }
 
         // Hover tracking for tooltip
-        gtkConnectMotion(chartArea) { [weak self] x, y in
+        let motionCtrl = gtkConnectMotion(chartArea) { [weak self] x, y in
             self?.handleChartHover(x: x, y: y)
         }
-        gtkConnectLeave(chartArea) { [weak self] in
+        gtkConnectLeave(motionCtrl) { [weak self] in
             self?.hoveredReading = nil
             if let area = self?.chartArea {
                 gtk_widget_queue_draw(area)
             }
         }
 
-        packStart(section, chartArea)
+        gtkBoxAppend(section, chartArea)
 
-        packStart(vbox, section)
+        gtkBoxAppend(vbox, section)
 
         syncChartRangeButtons()
     }
@@ -322,7 +322,6 @@ final class PopupWindow {
         guard let monitor else { return }
         for (range, btn) in chartRangeButtons {
             let active = range == monitor.selectedTimeRange
-            // Block toggled signals while syncing
             gtk_toggle_button_set_active(asToggle(btn), active ? 1 : 0)
             if active {
                 gtkAddClass(btn, "active-range")
@@ -342,8 +341,8 @@ final class PopupWindow {
     private func drawChart(cr: OpaquePointer) {
         guard let monitor else { return }
         let readings = monitor.chartReadings.sorted { $0.date < $1.date }
-        let w = Double(gtk_widget_get_allocated_width(chartArea))
-        let h = Double(gtk_widget_get_allocated_height(chartArea))
+        let w = Double(gtk_widget_get_width(chartArea))
+        let h = Double(gtk_widget_get_height(chartArea))
 
         let margin = (top: 10.0, right: 40.0, bottom: 20.0, left: 8.0)
         let plotW = w - margin.left - margin.right
@@ -565,7 +564,7 @@ final class PopupWindow {
         let readings = monitor.chartReadings.sorted { $0.date < $1.date }
         guard !readings.isEmpty else { return }
 
-        let w = Double(gtk_widget_get_allocated_width(chartArea))
+        let w = Double(gtk_widget_get_width(chartArea))
         let margin = (left: 8.0, right: 40.0)
         let plotW = w - margin.left - margin.right
 
@@ -619,7 +618,7 @@ final class PopupWindow {
         // Header: "Time in Range: 75%"
         tirHeaderLabel = gtkLabel("")
         gtk_label_set_xalign(asLabel(tirHeaderLabel), 0)
-        packStart(section, tirHeaderLabel)
+        gtkBoxAppend(section, tirHeaderLabel)
 
         // Stats range selector
         let rangeBox = gtkBox(orientation: GTK_ORIENTATION_HORIZONTAL, spacing: 4)
@@ -629,7 +628,7 @@ final class PopupWindow {
             gtkAddClass(btn, "range-btn")
             gtk_widget_set_size_request(btn, -1, 26)
             statsRangeButtons[range] = btn
-            packStart(rangeBox, btn, expand: true, fill: true)
+            gtkBoxAppend(rangeBox, btn, expand: true, fill: true)
 
             gtkConnect(btn, signal: "toggled") { [weak self] in
                 guard let self, let monitor = self.monitor else { return }
@@ -641,15 +640,15 @@ final class PopupWindow {
                 }
             }
         }
-        packStart(section, rangeBox)
+        gtkBoxAppend(section, rangeBox)
 
         // TiR colored bar (drawn with Cairo)
         tirBar = gtk_drawing_area_new()
         gtk_widget_set_size_request(tirBar, -1, 10)
-        gtkConnectDraw(tirBar) { [weak self] cr in
+        gtkSetDrawFunc(tirBar) { [weak self] cr in
             self?.drawTiRBar(cr: cr)
         }
-        packStart(section, tirBar)
+        gtkBoxAppend(section, tirBar)
 
         // Low / In Range / High labels
         let pctBox = gtkBox(orientation: GTK_ORIENTATION_HORIZONTAL, spacing: 0)
@@ -659,22 +658,22 @@ final class PopupWindow {
         gtk_label_set_xalign(asLabel(tirLowLabel), 0)
         gtk_label_set_xalign(asLabel(tirInRangeLabel), 0.5)
         gtk_label_set_xalign(asLabel(tirHighLabel), 1)
-        packStart(pctBox, tirLowLabel, expand: true, fill: true)
-        packStart(pctBox, tirInRangeLabel, expand: true, fill: true)
-        packStart(pctBox, tirHighLabel, expand: true, fill: true)
-        packStart(section, pctBox)
+        gtkBoxAppend(pctBox, tirLowLabel, expand: true, fill: true)
+        gtkBoxAppend(pctBox, tirInRangeLabel, expand: true, fill: true)
+        gtkBoxAppend(pctBox, tirHighLabel, expand: true, fill: true)
+        gtkBoxAppend(section, pctBox)
 
         // GMI + reading count
         gmiLabel = gtkLabel("")
         gtk_label_set_xalign(asLabel(gmiLabel), 0)
-        packStart(section, gmiLabel)
+        gtkBoxAppend(section, gmiLabel)
 
         // Span warning (hidden unless <14d)
         spanWarningLabel = gtkLabel("")
         gtk_label_set_xalign(asLabel(spanWarningLabel), 0)
-        packStart(section, spanWarningLabel)
+        gtkBoxAppend(section, spanWarningLabel)
 
-        packStart(vbox, section)
+        gtkBoxAppend(vbox, section)
 
         syncStatsRangeButtons()
     }
@@ -744,13 +743,13 @@ final class PopupWindow {
             if insufficient {
                 let warnMarkup = "<span font='8' color='#666666'>Based on \(String(format: "%.1fd", span)) of data — 14d+ recommended</span>"
                 gtk_label_set_markup(asLabel(spanWarningLabel), warnMarkup)
-                gtk_widget_show(spanWarningLabel)
+                gtk_widget_set_visible(spanWarningLabel, 1)
             } else {
-                gtk_widget_hide(spanWarningLabel)
+                gtk_widget_set_visible(spanWarningLabel, 0)
             }
         } else {
             gtk_label_set_text(asLabel(gmiLabel), "")
-            gtk_widget_hide(spanWarningLabel)
+            gtk_widget_set_visible(spanWarningLabel, 0)
         }
     }
 
@@ -758,9 +757,9 @@ final class PopupWindow {
         guard let monitor else { return }
         let stats = monitor.tirStats
         if let _ = monitor.gmi, stats.total > 0, monitor.statsDataSpanDays < 14 {
-            gtk_widget_show(spanWarningLabel)
+            gtk_widget_set_visible(spanWarningLabel, 1)
         } else {
-            gtk_widget_hide(spanWarningLabel)
+            gtk_widget_set_visible(spanWarningLabel, 0)
         }
     }
 
@@ -769,8 +768,8 @@ final class PopupWindow {
     private func drawTiRBar(cr: OpaquePointer) {
         guard let monitor else { return }
         let stats = monitor.tirStats
-        let w = Double(gtk_widget_get_allocated_width(tirBar))
-        let h = Double(gtk_widget_get_allocated_height(tirBar))
+        let w = Double(gtk_widget_get_width(tirBar))
+        let h = Double(gtk_widget_get_height(tirBar))
         let radius = 4.0
 
         guard stats.total > 0 else {
@@ -830,29 +829,31 @@ final class PopupWindow {
             guard let monitor = self?.monitor else { return }
             Task { @MainActor in await monitor.refreshNow() }
         }
-        packStart(section, refreshBtn, expand: true, fill: true)
-        packStart(section, gtkSeparator())
+        gtkBoxAppend(section, refreshBtn, expand: true, fill: true)
+        gtkBoxAppend(section, gtkSeparator())
 
         let updateBtn = makeActionButton("⬇  Check for Updates…")
         gtkConnect(updateBtn, signal: "clicked") { [weak self] in
             self?.onCheckUpdates?()
         }
-        packStart(section, updateBtn, expand: true, fill: true)
-        packStart(section, gtkSeparator())
+        gtkBoxAppend(section, updateBtn, expand: true, fill: true)
+        gtkBoxAppend(section, gtkSeparator())
 
         let settingsBtn = makeActionButton("⚙  Settings…")
         gtkConnect(settingsBtn, signal: "clicked") { [weak self] in
             self?.onOpenSettings?()
         }
-        packStart(section, settingsBtn, expand: true, fill: true)
-        packStart(section, gtkSeparator())
+        gtkBoxAppend(section, settingsBtn, expand: true, fill: true)
+        gtkBoxAppend(section, gtkSeparator())
 
         let quitBtn = makeActionButton("⏻  Quit DexBar")
         gtkAddClass(quitBtn, "quit-btn")
-        gtkConnect(quitBtn, signal: "clicked") { gtk_main_quit() }
-        packStart(section, quitBtn, expand: true, fill: true)
+        gtkConnect(quitBtn, signal: "clicked") {
+            g_main_loop_quit(mainLoop)
+        }
+        gtkBoxAppend(section, quitBtn, expand: true, fill: true)
 
-        packStart(vbox, section)
+        gtkBoxAppend(vbox, section)
     }
 
     private func makeActionButton(_ label: String) -> GWidget {

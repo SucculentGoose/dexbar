@@ -21,19 +21,22 @@ products += [
 targets += [
     // MARK: - C system library wrappers (Linux only)
     .systemLibrary(
-        name: "CGtk3",
-        path: "DexBarLinux/Sources/CLibraries/CGtk3",
-        pkgConfig: "gtk+-3.0",
-        providers: [.apt(["libgtk-3-dev"])]
+        name: "CGtk4",
+        path: "DexBarLinux/Sources/CLibraries/CGtk4",
+        pkgConfig: "gtk4",
+        providers: [.apt(["libgtk-4-dev"])]
     ),
     .systemLibrary(
-        name: "CAppIndicator",
-        path: "DexBarLinux/Sources/CLibraries/CAppIndicator",
-        pkgConfig: "ayatana-appindicator3-0.1",
-        providers: [
-            .apt(["libayatana-appindicator3-dev"]),
-            .apt(["libappindicator3-dev"]),  // fallback for non-Ubuntu distros
-        ]
+        name: "CDbusmenu",
+        path: "DexBarLinux/Sources/CLibraries/CDbusmenu",
+        pkgConfig: "dbusmenu-glib-0.4",
+        providers: [.apt(["libdbusmenu-glib-dev"])]
+    ),
+    .systemLibrary(
+        name: "CGtk4LayerShell",
+        path: "DexBarLinux/Sources/CLibraries/CGtk4LayerShell",
+        pkgConfig: "gtk4-layer-shell-0",
+        providers: [.apt(["libgtk4-layer-shell-dev"])]
     ),
     .systemLibrary(
         name: "CLibSecret",
@@ -70,8 +73,9 @@ targets += [
         dependencies: [
             "DexBarCore",
             .target(name: "DexBarLinuxBridge", condition: .when(platforms: [.linux])),
-            .target(name: "CGtk3",             condition: .when(platforms: [.linux])),
-            .target(name: "CAppIndicator",     condition: .when(platforms: [.linux])),
+            .target(name: "CGtk4",             condition: .when(platforms: [.linux])),
+            .target(name: "CDbusmenu",         condition: .when(platforms: [.linux])),
+            .target(name: "CGtk4LayerShell",   condition: .when(platforms: [.linux])),
             .target(name: "CLibSecret",        condition: .when(platforms: [.linux])),
             .target(name: "CLibNotify",        condition: .when(platforms: [.linux])),
         ],
