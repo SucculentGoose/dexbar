@@ -40,10 +40,9 @@ if [[ "$OS" == "Linux" ]]; then
 
   # ── check / install system dependencies ─────────────────────────────────────
   MISSING_DEPS=()
-  pkg-config --exists gtk+-3.0           2>/dev/null || MISSING_DEPS+=("libgtk-3-dev")
-  pkg-config --exists ayatana-appindicator3-0.1 2>/dev/null \
-    || pkg-config --exists appindicator3-0.1 2>/dev/null \
-    || MISSING_DEPS+=("libayatana-appindicator3-dev")
+  pkg-config --exists gtk4               2>/dev/null || MISSING_DEPS+=("libgtk-4-dev")
+  pkg-config --exists dbusmenu-glib-0.4  2>/dev/null || MISSING_DEPS+=("libdbusmenu-glib-dev")
+  pkg-config --exists gtk4-layer-shell-0 2>/dev/null || MISSING_DEPS+=("libgtk4-layer-shell-dev")
   pkg-config --exists libsecret-1        2>/dev/null || MISSING_DEPS+=("libsecret-1-dev")
   pkg-config --exists libnotify          2>/dev/null || MISSING_DEPS+=("libnotify-dev")
 
@@ -85,11 +84,20 @@ if [[ "$OS" == "Linux" ]]; then
   mkdir -p "${HOME}/.local/share/dexbar"
   # When installed from a release tarball, icon.png is next to this script.
   # When building from source, fall back to the asset in the repo.
+  ICON_SRC=""
   if [[ -f "$SCRIPT_DIR/icon.png" ]]; then
-    cp "$SCRIPT_DIR/icon.png" "${HOME}/.local/share/dexbar/icon.png"
+    ICON_SRC="$SCRIPT_DIR/icon.png"
   elif [[ -f "$SCRIPT_DIR/DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png" ]]; then
-    cp "$SCRIPT_DIR/DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png" \
-       "${HOME}/.local/share/dexbar/icon.png"
+    ICON_SRC="$SCRIPT_DIR/DexBar/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+  fi
+  if [[ -n "$ICON_SRC" ]]; then
+    cp "$ICON_SRC" "${HOME}/.local/share/dexbar/icon.png"
+    # Install into hicolor icon theme so GTK4 windows can find it by name.
+    # Uses "dexbar-app" to avoid conflicting with the tray SNI "dexbar" Id.
+    HICOLOR_DIR="${HOME}/.local/share/icons/hicolor/256x256/apps"
+    mkdir -p "$HICOLOR_DIR"
+    cp "$ICON_SRC" "$HICOLOR_DIR/dexbar-app.png"
+    gtk-update-icon-cache -f -t "${HOME}/.local/share/icons/hicolor" 2>/dev/null || true
   fi
   success "Icon installed"
 
@@ -101,7 +109,7 @@ Type=Application
 Name=DexBar
 Comment=Dexcom glucose readings in your system tray
 Exec=${LINUX_INSTALL_DIR}/dexbar
-Icon=${HOME}/.local/share/dexbar/icon.png
+Icon=dexbar
 Categories=Utility;
 StartupNotify=false"
   info "Installing .desktop file…"

@@ -1,0 +1,5 @@
+module CGtk4 [system] {
+    header "/usr/include/gtk-4.0/gtk/gtk.h"
+    link "gtk-4"
+    export *
+}

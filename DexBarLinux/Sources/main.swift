@@ -1,9 +1,9 @@
 // DexBar Linux — main entry point
-// Requires: GTK3, libayatana-appindicator3, libsecret, libnotify
+// Requires: GTK4, libdbusmenu-glib, libsecret, libnotify
 
-#if canImport(CGtk3) && canImport(CAppIndicator)
-import CGtk3
-import CAppIndicator
+#if canImport(CGtk4) && canImport(CDbusmenu)
+import CGtk4
+import CDbusmenu
 import DexBarCore
 import Foundation
 
@@ -13,11 +13,15 @@ import CLibNotify
 
 // MARK: - Bootstrap
 
-gtk_init(nil, nil)
+gtk_init()
 
 #if canImport(CLibNotify)
 notify_init("DexBar")
 #endif
+
+// MARK: - GLib main loop (replaces gtk_main in GTK4)
+
+let mainLoop = g_main_loop_new(nil, 0)!
 
 // MARK: - Application components
 // We know we're on the main thread (GLib single-threaded loop), so it's
@@ -70,12 +74,12 @@ MainActor.assumeIsolated {
 
     // MARK: - SIGTERM / SIGINT handler
 
-    signal(SIGTERM) { _ in UserDefaults.standard.synchronize(); gtk_main_quit() }
-    signal(SIGINT)  { _ in UserDefaults.standard.synchronize(); gtk_main_quit() }
+    signal(SIGTERM) { _ in UserDefaults.standard.synchronize(); g_main_loop_quit(mainLoop) }
+    signal(SIGINT)  { _ in UserDefaults.standard.synchronize(); g_main_loop_quit(mainLoop) }
 
     // MARK: - Run main loop
 
-    // gtk_main() drives GLib's event loop but doesn't drain Swift's RunLoop.main,
+    // g_main_loop_run() drives GLib's event loop but doesn't drain Swift's RunLoop.main,
     // which is needed by Task { @MainActor in ... } and Foundation.Timer.
     // This 10 ms GLib timer bridges the two, so async tasks actually execute.
     let drainRunLoop: @convention(c) (gpointer?) -> gboolean = { _ in
@@ -92,7 +96,7 @@ MainActor.assumeIsolated {
     }
     g_timeout_add(5000, syncDefaults, nil)
 
-    gtk_main()
+    g_main_loop_run(mainLoop)
 
     UserDefaults.standard.synchronize()
 
@@ -103,6 +107,6 @@ MainActor.assumeIsolated {
 
 #else
 import Foundation
-fputs("DexBarLinux requires GTK3 and libayatana-appindicator3. Build on Linux only.\n", stderr)
+fputs("DexBarLinux requires GTK4 and libdbusmenu-glib. Build on Linux only.\n", stderr)
 exit(1)
 #endif

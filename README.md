@@ -5,7 +5,7 @@
 A native menu bar / system tray app that displays real-time blood glucose readings from your Dexcom CGM via the Dexcom Share API. Available for **macOS**, **Linux**, and **Windows**.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)
-![Linux](https://img.shields.io/badge/Linux-GTK3-blue)
+![Linux](https://img.shields.io/badge/Linux-GTK4-blue)
 ![Windows](https://img.shields.io/badge/Windows-10%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 ![.NET 8](https://img.shields.io/badge/.NET-8-purple)
@@ -156,16 +156,16 @@ dexbar/
 │   └── DexBarWindows.csproj
 └── DexBarLinux/                      # Linux app
     └── Sources/
-        ├── main.swift                # Entry point (GTK3 main loop)
+        ├── main.swift                # Entry point (GLib main loop)
         ├── Managers/
         │   ├── GlucoseMonitorLinux.swift  # Polling loop, alert evaluation
         │   └── LinuxNotificationManager.swift  # libnotify notifications
         ├── Services/
         │   └── SecretServiceStorage.swift  # KDE Wallet / GNOME Keyring
         └── Views/
-            ├── TrayIcon.swift        # libayatana-appindicator3 tray icon
-            ├── PopupWindow.swift     # GTK3 status popup
-            ├── SettingsWindow.swift  # GTK3 settings window
+            ├── TrayIcon.swift        # D-Bus StatusNotifierItem tray icon
+            ├── PopupWindow.swift     # GTK4 status popup
+            ├── SettingsWindow.swift  # GTK4 settings window
             └── AutoStart.swift      # ~/.config/autostart/ management
 ```
 
@@ -178,8 +178,9 @@ DexBar also runs on Linux as a system tray application. It is tested on **KDE Pl
 ### Linux Requirements
 
 - Swift 6.0+ — [swift.org/download](https://swift.org/download)
-- GTK3: `libgtk-3-dev`
-- System tray: `libayatana-appindicator3-dev`
+- GTK4: `libgtk-4-dev`
+- System tray menu: `libdbusmenu-glib-dev`
+- Wayland overlay: `libgtk4-layer-shell-dev`
 - Credential storage: `libsecret-1-dev`
 - Desktop notifications: `libnotify-dev`
 
@@ -187,7 +188,7 @@ DexBar also runs on Linux as a system tray application. It is tested on **KDE Pl
 
 ```bash
 # 1. Install system dependencies (Debian/Ubuntu/KDE Neon)
-sudo apt install libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev libnotify-dev
+sudo apt install libgtk-4-dev libdbusmenu-glib-dev libgtk4-layer-shell-dev libsecret-1-dev libnotify-dev
 
 # 2. Clone and build
 git clone https://github.com/SucculentGoose/dexbar

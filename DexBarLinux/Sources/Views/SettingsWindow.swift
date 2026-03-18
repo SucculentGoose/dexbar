@@ -1,9 +1,9 @@
-#if canImport(CGtk3)
-import CGtk3
+#if canImport(CGtk4)
+import CGtk4
 import DexBarCore
 import Foundation
 
-/// GTK3 settings window with four tabs: Account, Display, Alerts, About.
+/// GTK4 settings window with four tabs: Account, Display, Alerts, About.
 @MainActor
 final class SettingsWindow {
     private var window: GWidget?
@@ -44,7 +44,7 @@ final class SettingsWindow {
     func show() {
         guard let win = window else { return }
         loadCurrentSettings()
-        gtk_widget_show_all(win)
+        gtk_widget_set_visible(win, 1)
         gtk_window_present(asWindow(win))
     }
 
@@ -56,18 +56,18 @@ final class SettingsWindow {
     // MARK: - Window construction
 
     private func buildWindow() {
-        window = gtk_window_new(GTK_WINDOW_TOPLEVEL)
+        window = gtk_window_new()
         gtk_window_set_title(asWindow(window), "DexBar Settings")
         gtkSetAppIcon(window)
         gtk_window_set_default_size(asWindow(window), 380, 440)
         gtk_window_set_resizable(asWindow(window), 0)
 
         gtkConnectDeleteHide(window) { [weak self] in
-            if let win = self?.window { gtk_widget_hide(win) }
+            if let win = self?.window { gtk_widget_set_visible(win, 0) }
         }
 
         let notebook = gtk_notebook_new()
-        containerAdd(window, notebook)
+        gtk_window_set_child(asWindow(window), notebook)
 
         gtk_notebook_append_page(asNotebook(notebook),
             buildAccountTab(), gtk_label_new("Account"))
@@ -155,7 +155,7 @@ final class SettingsWindow {
 
         attachLabel(grid, "Launch at Login", col: 0, row: row)
         autoStartCheck = gtk_check_button_new()
-        gtk_toggle_button_set_active(asToggle(autoStartCheck), AutoStart.isEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(autoStartCheck), AutoStart.isEnabled ? 1 : 0)
         gtkConnect(autoStartCheck, signal: "toggled") { [weak self] in self?.handleAutoStartToggle() }
         gtk_grid_attach(asGrid(grid), autoStartCheck, 1, row, 1, 1)
         row += 1
@@ -177,7 +177,7 @@ final class SettingsWindow {
         let grid = gtk_grid_new()
         gtk_grid_set_row_spacing(asGrid(grid), 6)
         gtk_grid_set_column_spacing(asGrid(grid), 8)
-        packStart(vbox, grid)
+        gtkBoxAppend(vbox, grid)
 
         var row: gint = 0
         (urgentHighCheck, urgentHighSpin) = alertRow(grid, label: "Urgent High (mg/dL)", row: row, default: 250)
@@ -188,7 +188,7 @@ final class SettingsWindow {
         row += 1
         (urgentLowCheck, urgentLowSpin)   = alertRow(grid, label: "Urgent Low (mg/dL)", row: row, default: 55)
 
-        packStart(vbox, gtkSeparator())
+        gtkBoxAppend(vbox, gtkSeparator())
 
         risingFastCheck   = checkRow(vbox, label: "Rising Fast alert")
         droppingFastCheck = checkRow(vbox, label: "Dropping Fast alert")
@@ -214,20 +214,20 @@ final class SettingsWindow {
         gtk_widget_set_halign(vbox, GTK_ALIGN_CENTER)
         gtk_widget_set_valign(vbox, GTK_ALIGN_CENTER)
 
-        packStart(vbox, gtkLabel("DexBar"))
-        packStart(vbox, gtkLabel("Linux Edition · v\(AppVersion.current)"))
+        gtkBoxAppend(vbox, gtkLabel("DexBar"))
+        gtkBoxAppend(vbox, gtkLabel("Linux Edition · v\(AppVersion.current)"))
 
         let desc = gtkLabel("Blood glucose readings from\nDexcom Share in your system tray.")
         gtk_label_set_justify(asLabel(desc), GTK_JUSTIFY_CENTER)
-        packStart(vbox, desc)
+        gtkBoxAppend(vbox, desc)
 
         let link = gtk_link_button_new_with_label(
             "https://github.com/SucculentGoose/dexbar", "View on GitHub")!
-        packStart(vbox, link)
+        gtkBoxAppend(vbox, link)
 
         let disclaimer = gtkLabel("⚠️ Not a medical device.\nAlways verify readings with your CGM.")
         gtk_label_set_justify(asLabel(disclaimer), GTK_JUSTIFY_CENTER)
-        packStart(vbox, disclaimer)
+        gtkBoxAppend(vbox, disclaimer)
 
         return vbox
     }
@@ -251,7 +251,7 @@ final class SettingsWindow {
 
     private func checkRow(_ vbox: GWidget?, label: String) -> GWidget? {
         let check = gtk_check_button_new_with_label(label)
-        packStart(vbox, check)
+        gtkBoxAppend(vbox, check)
         return check
     }
 
@@ -269,7 +269,7 @@ final class SettingsWindow {
         let defaults = UserDefaults.standard
 
         if let username = defaults.string(forKey: "dexcomUsername") {
-            gtk_entry_set_text(asEntry(usernameEntry), username)
+            gtk_editable_set_text(asEditable(usernameEntry), username)
         }
         // Don't populate the password field with the real value — just show a placeholder
         // so the user knows a password is saved without exposing it.
@@ -290,27 +290,27 @@ final class SettingsWindow {
         let refreshIdx = refreshIntervalOptions.firstIndex(where: { $0.1 == monitor.refreshInterval }).map { gint($0) } ?? 2
         gtk_combo_box_set_active(asCombo(refreshCombo), refreshIdx)
 
-        gtk_toggle_button_set_active(asToggle(coloredTrayCheck), monitor.coloredTrayIcon ? 1 : 0)
+        gtk_check_button_set_active(asCheck(coloredTrayCheck), monitor.coloredTrayIcon ? 1 : 0)
 
-        gtk_toggle_button_set_active(asToggle(urgentHighCheck), monitor.alertUrgentHighEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(urgentHighCheck), monitor.alertUrgentHighEnabled ? 1 : 0)
         gtk_spin_button_set_value(asSpin(urgentHighSpin), monitor.alertUrgentHighThresholdMgdL)
-        gtk_toggle_button_set_active(asToggle(highCheck), monitor.alertHighEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(highCheck), monitor.alertHighEnabled ? 1 : 0)
         gtk_spin_button_set_value(asSpin(highSpin), monitor.alertHighThresholdMgdL)
-        gtk_toggle_button_set_active(asToggle(lowCheck), monitor.alertLowEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(lowCheck), monitor.alertLowEnabled ? 1 : 0)
         gtk_spin_button_set_value(asSpin(lowSpin), monitor.alertLowThresholdMgdL)
-        gtk_toggle_button_set_active(asToggle(urgentLowCheck), monitor.alertUrgentLowEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(urgentLowCheck), monitor.alertUrgentLowEnabled ? 1 : 0)
         gtk_spin_button_set_value(asSpin(urgentLowSpin), monitor.alertUrgentLowThresholdMgdL)
-        gtk_toggle_button_set_active(asToggle(risingFastCheck), monitor.alertRisingFastEnabled ? 1 : 0)
-        gtk_toggle_button_set_active(asToggle(droppingFastCheck), monitor.alertDroppingFastEnabled ? 1 : 0)
-        gtk_toggle_button_set_active(asToggle(staleDataCheck), monitor.alertStaleDataEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(risingFastCheck), monitor.alertRisingFastEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(droppingFastCheck), monitor.alertDroppingFastEnabled ? 1 : 0)
+        gtk_check_button_set_active(asCheck(staleDataCheck), monitor.alertStaleDataEnabled ? 1 : 0)
 
         gtk_label_set_text(asLabel(connectionStatusLabel), monitor.state.statusText)
     }
 
     private func handleConnect() {
         guard let monitor else { return }
-        let username = String(cString: gtk_entry_get_text(asEntry(usernameEntry)!))
-        let typedPassword = String(cString: gtk_entry_get_text(asEntry(passwordEntry)!))
+        let username = String(cString: gtk_editable_get_text(asEditable(usernameEntry)!))
+        let typedPassword = String(cString: gtk_editable_get_text(asEditable(passwordEntry)!))
         let regionIdx = gtk_combo_box_get_active(asCombo(regionCombo))
         let region = DexcomRegion.allCases[max(0, Int(regionIdx))]
 
@@ -362,27 +362,27 @@ final class SettingsWindow {
         if unitIdx >= 0 { monitor.unit = GlucoseUnit.allCases[Int(unitIdx)] }
         let refreshIdx = gtk_combo_box_get_active(asCombo(refreshCombo))
         if refreshIdx >= 0 { monitor.updateRefreshInterval(refreshIntervalOptions[Int(refreshIdx)].1) }
-        monitor.coloredTrayIcon = gtk_toggle_button_get_active(asToggle(coloredTrayCheck)) != 0
+        monitor.coloredTrayIcon = gtk_check_button_get_active(asCheck(coloredTrayCheck)) != 0
         monitor.onUpdate?()
     }
 
     private func saveAlertSettings() {
         guard let monitor else { return }
-        monitor.alertUrgentHighEnabled = gtk_toggle_button_get_active(asToggle(urgentHighCheck)) != 0
+        monitor.alertUrgentHighEnabled = gtk_check_button_get_active(asCheck(urgentHighCheck)) != 0
         monitor.alertUrgentHighThresholdMgdL = gtk_spin_button_get_value(asSpin(urgentHighSpin))
-        monitor.alertHighEnabled = gtk_toggle_button_get_active(asToggle(highCheck)) != 0
+        monitor.alertHighEnabled = gtk_check_button_get_active(asCheck(highCheck)) != 0
         monitor.alertHighThresholdMgdL = gtk_spin_button_get_value(asSpin(highSpin))
-        monitor.alertLowEnabled = gtk_toggle_button_get_active(asToggle(lowCheck)) != 0
+        monitor.alertLowEnabled = gtk_check_button_get_active(asCheck(lowCheck)) != 0
         monitor.alertLowThresholdMgdL = gtk_spin_button_get_value(asSpin(lowSpin))
-        monitor.alertUrgentLowEnabled = gtk_toggle_button_get_active(asToggle(urgentLowCheck)) != 0
+        monitor.alertUrgentLowEnabled = gtk_check_button_get_active(asCheck(urgentLowCheck)) != 0
         monitor.alertUrgentLowThresholdMgdL = gtk_spin_button_get_value(asSpin(urgentLowSpin))
-        monitor.alertRisingFastEnabled = gtk_toggle_button_get_active(asToggle(risingFastCheck)) != 0
-        monitor.alertDroppingFastEnabled = gtk_toggle_button_get_active(asToggle(droppingFastCheck)) != 0
-        monitor.alertStaleDataEnabled = gtk_toggle_button_get_active(asToggle(staleDataCheck)) != 0
+        monitor.alertRisingFastEnabled = gtk_check_button_get_active(asCheck(risingFastCheck)) != 0
+        monitor.alertDroppingFastEnabled = gtk_check_button_get_active(asCheck(droppingFastCheck)) != 0
+        monitor.alertStaleDataEnabled = gtk_check_button_get_active(asCheck(staleDataCheck)) != 0
     }
 
     private func handleAutoStartToggle() {
-        if gtk_toggle_button_get_active(asToggle(autoStartCheck)) != 0 {
+        if gtk_check_button_get_active(asCheck(autoStartCheck)) != 0 {
             AutoStart.enable()
         } else {
             AutoStart.disable()
