@@ -49,7 +49,9 @@ public partial class GlucoseChartControl : UserControl
     {
         InitializeComponent();
         _monitor = monitor;
-        Background = new SolidColorBrush(BackgroundColor);
+        // Background is drawn manually in OnRender — setting it on the UserControl
+        // would paint via the template Border which renders ON TOP of OnRender output.
+        Background = System.Windows.Media.Brushes.Transparent;
         MouseMove += OnChartMouseMove;
         MouseLeave += (_, _) => { _hoveredReading = null; InvalidateVisual(); };
     }
@@ -57,6 +59,10 @@ public partial class GlucoseChartControl : UserControl
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
+
+        // Draw background explicitly so it doesn't cover chart content
+        dc.DrawRectangle(new SolidColorBrush(BackgroundColor), null,
+            new Rect(0, 0, ActualWidth, ActualHeight));
 
         var settings = _monitor.Settings;
         var unit = settings.Unit;
@@ -342,6 +348,11 @@ public partial class GlucoseChartControl : UserControl
         var typeface = bold
             ? new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal)
             : new Typeface("Segoe UI");
+
+        double pixelsPerDip;
+        try { pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip; }
+        catch { pixelsPerDip = 1.0; }
+
         return new FormattedText(
             text,
             CultureInfo.CurrentCulture,
@@ -349,7 +360,7 @@ public partial class GlucoseChartControl : UserControl
             typeface,
             emSize,
             brush,
-            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            pixelsPerDip);
     }
 
     private static double DisplayVal(GlucoseReading r, GlucoseUnit unit) =>

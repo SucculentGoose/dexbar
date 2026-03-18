@@ -5,7 +5,7 @@ using DexBarWindows.Pages;
 
 namespace DexBarWindows.Windows;
 
-public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
+public partial class SettingsWindow : Window
 {
     private readonly GlucoseMonitor _monitor;
     private readonly Dictionary<string, System.Windows.Controls.Page> _pages;

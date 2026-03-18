@@ -28,11 +28,13 @@ public class TrayManager : IDisposable
     private readonly GlucoseMonitor  _monitor;
     private readonly NotifyIcon      _notifyIcon;
     private readonly ToolStripMenuItem _refreshItem;
+    private readonly UpdateChecker   _updateChecker;
 
     private PopupWindow?    _popup;
     private SettingsWindow? _settingsWindow;
     private Icon?           _currentIcon;
     private bool            _disposed;
+    private string?         _pendingUpdateUrl;
 
     public TrayManager()
     {
@@ -65,6 +67,12 @@ public class TrayManager : IDisposable
             Visible          = true
         };
         _notifyIcon.MouseClick += NotifyIcon_MouseClick;
+        _notifyIcon.BalloonTipClicked += NotifyIcon_BalloonTipClicked;
+
+        // Auto-update checker
+        _updateChecker = new UpdateChecker();
+        _updateChecker.UpdateAvailable += OnUpdateAvailable;
+        _updateChecker.Start();
 
         AutoStart();
     }
@@ -132,10 +140,30 @@ public class TrayManager : IDisposable
 
     private void HandleAlert(string title, string message)
     {
+        _pendingUpdateUrl = null;
         _notifyIcon.BalloonTipTitle = title;
         _notifyIcon.BalloonTipText  = message;
         _notifyIcon.BalloonTipIcon  = ToolTipIcon.Warning;
         _notifyIcon.ShowBalloonTip(5000);
+    }
+
+    private void OnUpdateAvailable(string newVersion, string downloadUrl)
+    {
+        _pendingUpdateUrl = downloadUrl;
+        _notifyIcon.BalloonTipTitle = "DexBar Update Available";
+        _notifyIcon.BalloonTipText  = $"Version {newVersion} is available. Click to install.";
+        _notifyIcon.BalloonTipIcon  = ToolTipIcon.Info;
+        _notifyIcon.ShowBalloonTip(10000);
+    }
+
+    private async void NotifyIcon_BalloonTipClicked(object? sender, EventArgs e)
+    {
+        if (_pendingUpdateUrl is not null)
+        {
+            var url = _pendingUpdateUrl;
+            _pendingUpdateUrl = null;
+            await UpdateChecker.DownloadAndLaunchInstallerAsync(url);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -163,6 +191,7 @@ public class TrayManager : IDisposable
         }
 
         PositionPopup();
+        _popup.SuppressDeactivateOnce();
         _popup.Show();
         _popup.Activate();
     }
@@ -217,27 +246,48 @@ public class TrayManager : IDisposable
 
     private void UpdateIcon(string text, Color color)
     {
-        const int size = 64;
+        const int size = 128;
         using var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.SmoothingMode     = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.AntiAlias;
+            g.SmoothingMode     = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(Color.Transparent);
 
-            var bgColor = Color.FromArgb(200, 30, 30, 32);
-            using var bgBrush = new SolidBrush(bgColor);
-            g.FillRectangle(bgBrush, 0, 0, size, size);
+            // Rounded background
+            const int radius = 16;
+            var bgRect = new Rectangle(0, 0, size, size);
+            using var bgBrush = new SolidBrush(Color.FromArgb(240, 24, 24, 26));
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(bgRect.X, bgRect.Y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(bgRect.Right - radius * 2, bgRect.Y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(bgRect.Right - radius * 2, bgRect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
+            path.AddArc(bgRect.X, bgRect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
+            path.CloseFigure();
+            g.FillPath(bgBrush, path);
 
-            float fontSize = text.Length <= 3 ? 30f : 22f;
-            using var font  = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
-            using var brush = new SolidBrush(color);
-            var sf = new StringFormat
+            // Auto-fit: start large and shrink until text fits
+            float fontSize = 90f;
+            Font font;
+            SizeF measured;
+            do
             {
-                Alignment     = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center
-            };
-            g.DrawString(text, font, brush, new RectangleF(0, 0, size, size), sf);
+                font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+                measured = g.MeasureString(text, font);
+                if (measured.Width <= size - 4 && measured.Height <= size - 4)
+                    break;
+                font.Dispose();
+                fontSize -= 4f;
+            } while (fontSize > 16f);
+
+            using (font)
+            {
+                // Center manually using measured size for pixel-perfect placement
+                float x = (size - measured.Width) / 2f;
+                float y = (size - measured.Height) / 2f;
+                using var brush = new SolidBrush(color);
+                g.DrawString(text, font, brush, x, y);
+            }
         }
 
         var hIcon  = bmp.GetHicon();
@@ -276,6 +326,7 @@ public class TrayManager : IDisposable
 
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _updateChecker.Dispose();
         _monitor.Dispose();
         _currentIcon?.Dispose();
 

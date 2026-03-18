@@ -155,10 +155,13 @@ jobs:
           footer = """
           ---
           ### Installation
-          1. Download **DexBar-v{version}.zip** below and unzip it
-          2. Drag **DexBar.app** to your `/Applications` folder
-          3. **First launch:** run `xattr -cr /Applications/DexBar.app` in Terminal if macOS blocks it
-          4. Click the menu bar icon → **Settings** → enter your Dexcom credentials
+          **macOS:** Download **DexBar-v{version}.zip**, unzip, drag to `/Applications`. First launch: `xattr -cr /Applications/DexBar.app`
+
+          **Windows:** Download **DexBarSetup-v{version}.exe** and run the installer.
+
+          **Linux:** Download the tarball and run `install.sh`.
+
+          Then click the tray/menu bar icon → **Settings** → enter your Dexcom credentials.
           """.format(version=open("VERSION").read().strip())
           with open("release_notes.md", "w") as f:
               f.write(notes + "\n" + footer)
@@ -300,26 +303,37 @@ jobs:
           (Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>${{ env.APP_VERSION }}</Version>" |
             Set-Content $csproj
 
-      - name: Publish single-file exe
+      - name: Publish app
         run: >
           dotnet publish DexBarWindows/DexBarWindows.csproj
           -c Release
           -r win-x64
           --self-contained
-          -p:PublishSingleFile=true
           -p:Version=${{ env.APP_VERSION }}
-          -o publish/
 
-      - name: Package binary
+      - name: Build installer with Inno Setup
         shell: pwsh
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
         run: |
-          Compress-Archive -Path publish\DexBarWindows.exe -DestinationPath dexbar-windows-x86_64-v${{ env.APP_VERSION }}.zip
+          $iss = "DexBarWindows/installer.iss"
+          (Get-Content $iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$env:APP_VERSION`"" |
+            Set-Content $iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $iss
 
-      - name: Upload Windows binary to GitHub Release
+      - name: Rename installer
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          Move-Item "DexBarWindows/installer-output/DexBarSetup-$env:APP_VERSION.exe" `
+                    "DexBarSetup-v$env:APP_VERSION.exe"
+
+      - name: Upload Windows installer to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.APP_VERSION }}
-          files: dexbar-windows-x86_64-v${{ env.APP_VERSION }}.zip
+          files: DexBarSetup-v${{ env.APP_VERSION }}.exe
 
       - name: Update appcast-windows.xml
         env:
@@ -332,8 +346,8 @@ jobs:
 
           version  = os.environ["APP_VERSION"]
           pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
-          dl_url   = f"https://github.com/SucculentGoose/dexbar/releases/download/v{version}/dexbar-windows-x86_64-v{version}.zip"
-          size     = os.path.getsize(f"dexbar-windows-x86_64-v{version}.zip")
+          dl_url   = f"https://github.com/SucculentGoose/dexbar/releases/download/v{version}/DexBarSetup-v{version}.exe"
+          size     = os.path.getsize(f"DexBarSetup-v{version}.exe")
 
           item = (
               "        <item>\n"

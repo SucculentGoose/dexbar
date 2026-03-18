@@ -4,6 +4,13 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Background="Transparent"
       FontFamily="Segoe UI">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/DarkCard.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24,20,24,24" MaxWidth="520">
@@ -26,7 +33,7 @@
                     <StackPanel>
                         <TextBlock Text="Unit" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Choose how glucose values are displayed"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <WrapPanel VerticalAlignment="Center">
@@ -55,7 +62,7 @@
                     <StackPanel>
                         <TextBlock Text="Polling interval" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="How often to fetch new readings"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ComboBox x:Name="CmbRefresh"
@@ -77,7 +84,7 @@
                     <StackPanel>
                         <TextBlock Text="Show delta" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Display the change since the last reading (e.g. +3 or −0.2)"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglShowDelta"
@@ -89,7 +96,7 @@
                     <StackPanel>
                         <TextBlock Text="Color-coded tray icon" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Tray icon changes color based on glucose range"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglColoredIcon"
@@ -101,7 +108,7 @@
                     <StackPanel>
                         <TextBlock Text="Launch at login" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Start DexBar automatically when you log in to Windows"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglLaunchAtLogin"

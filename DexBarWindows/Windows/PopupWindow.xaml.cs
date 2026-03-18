@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -17,7 +18,7 @@ using Cursors = System.Windows.Input.Cursors;
 
 namespace DexBarWindows.Windows;
 
-public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
+public partial class PopupWindow : Window
 {
     public event Action? OpenSettingsRequested;
 
@@ -28,8 +29,12 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
     private GlucoseChartControl? _chart;
 
     // Tracks the selected range button panels so we can update highlight state
-    private StackPanel? _chartRangeFlow;
-    private StackPanel? _statsRangeFlow;
+    private UniformGrid? _chartRangeFlow;
+    private UniformGrid? _statsRangeFlow;
+
+    // Guards against OnDeactivated firing before the window has truly gained focus
+    // (common when opening from a tray-icon click)
+    private bool _activationGuard;
 
     // ── Colors ────────────────────────────────────────────────────────────────
     private static readonly SolidColorBrush TextPrimary   = new(Color.FromRgb(240, 240, 242));
@@ -46,14 +51,14 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
         _monitor = monitor;
         InitializeComponent();
 
-        // Wire up action buttons
-        RefreshButton.Click  += async (_, _) => await _monitor.RefreshNowAsync();
-        SettingsButton.Click += (_, _) => { Hide(); OpenSettingsRequested?.Invoke(); };
-        QuitButton.Click     += (_, _) => Application.Current.Shutdown();
+        // Wire up action labels (MouseLeftButtonDown + Handled to prevent DragMove)
+        RefreshButton.MouseLeftButtonDown  += async (_, e) => { e.Handled = true; await _monitor.RefreshNowAsync(); };
+        SettingsButton.MouseLeftButtonDown += (_, e) => { e.Handled = true; Hide(); OpenSettingsRequested?.Invoke(); };
+        QuitButton.MouseLeftButtonDown     += (_, e) => { e.Handled = true; Application.Current.Shutdown(); };
 
-        // Build the chart and inject it into the ContentControl host
+        // Build the chart and inject it into the Grid host
         _chart = new GlucoseChartControl(_monitor);
-        ChartHost.Content = _chart;
+        ChartHost.Children.Add(_chart);
 
         // Build range button rows
         _chartRangeFlow = ChartRangeFlow;
@@ -71,6 +76,12 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
         UpdateDisplay();
     }
 
+    /// <summary>
+    /// Prevents the next OnDeactivated from hiding the window.
+    /// Call this right before Show() when opening from a tray-icon click.
+    /// </summary>
+    public void SuppressDeactivateOnce() => _activationGuard = true;
+
     // ── Drag ──────────────────────────────────────────────────────────────────
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -85,10 +96,17 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
 
     // ── Auto-hide on deactivation ─────────────────────────────────────────────
 
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        _activationGuard = false;
+    }
+
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
-        Hide();
+        if (!_activationGuard)
+            Hide();
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -267,15 +285,16 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
 
         foreach (var (range, label) in ranges)
         {
-            var btn = MakeSegmentButton(label, range == _chart.SelectedRange);
-            btn.Tag = range;
-            btn.Click += (_, _) =>
+            var seg = MakeSegmentButton(label, range == _chart.SelectedRange);
+            seg.Tag = range;
+            seg.MouseLeftButtonDown += (_, e) =>
             {
                 if (_chart is not null)
                     _chart.SelectedRange = range;
                 RefreshButtonHighlights(_chartRangeFlow, range);
+                e.Handled = true;
             };
-            _chartRangeFlow.Children.Add(btn);
+            _chartRangeFlow.Children.Add(seg);
         }
     }
 
@@ -294,24 +313,25 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
 
         foreach (var (range, label) in ranges)
         {
-            var btn = MakeSegmentButton(label, range == _monitor.Settings.StatsTimeRange);
-            btn.Tag = range;
-            btn.Click += (_, _) =>
+            var seg = MakeSegmentButton(label, range == _monitor.Settings.StatsTimeRange);
+            seg.Tag = range;
+            seg.MouseLeftButtonDown += (_, e) =>
             {
                 _monitor.Settings.StatsTimeRange = range;
                 _monitor.Settings.Save();
                 RefreshButtonHighlights(_statsRangeFlow, range);
                 UpdateTiR(_monitor.Settings);
+                e.Handled = true;
             };
-            _statsRangeFlow.Children.Add(btn);
+            _statsRangeFlow.Children.Add(seg);
         }
     }
 
-    private static void RefreshButtonHighlights(StackPanel panel, object selected)
+    private static void RefreshButtonHighlights(System.Windows.Controls.Panel panel, object selected)
     {
         foreach (var child in panel.Children)
         {
-            if (child is Button btn)
+            if (child is Border btn)
                 btn.Background = Equals(btn.Tag, selected)
                     ? new SolidColorBrush(SegmentActive)
                     : new SolidColorBrush(SegmentInactive);
@@ -320,22 +340,27 @@ public partial class PopupWindow : Wpf.Ui.Controls.FluentWindow
 
     // ── Segment button factory ────────────────────────────────────────────────
 
-    private static Button MakeSegmentButton(string text, bool active)
+    private static Border MakeSegmentButton(string text, bool active)
     {
-        return new Button
+        var border = new Border
         {
-            Content     = text,
-            Width       = 46,
-            Height      = 22,
-            Margin      = new Thickness(0, 0, 4, 0),
-            Padding     = new Thickness(0),
-            FontFamily  = new FontFamily("Segoe UI"),
-            FontSize    = 8,
-            Foreground  = new SolidColorBrush(SegmentFg),
             Background  = new SolidColorBrush(active ? SegmentActive : SegmentInactive),
-            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(4),
+            Margin      = new Thickness(0, 0, 3, 0),
             Cursor      = Cursors.Hand
         };
+        var tb = new TextBlock
+        {
+            Text            = text,
+            FontFamily      = new FontFamily("Segoe UI"),
+            FontSize        = 10,
+            Foreground      = new SolidColorBrush(SegmentFg),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            VerticalAlignment   = System.Windows.VerticalAlignment.Center,
+            Padding         = new Thickness(0, 2, 0, 2)
+        };
+        border.Child = tb;
+        return border;
     }
 
     // ── Color helpers ─────────────────────────────────────────────────────────

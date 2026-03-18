@@ -66,6 +66,9 @@ Pods/
 bin/
 obj/
 out/
+out-test/
+installer-output/
+*.exe
 *.user
 *.suo
 .vs/

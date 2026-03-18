@@ -4,6 +4,13 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Background="Transparent"
       FontFamily="Segoe UI">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/DarkCard.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24,20,24,24" MaxWidth="520">

@@ -49,8 +49,9 @@ public partial class AlertsPage : System.Windows.Controls.Page
         TglStaleData.IsChecked = s.AlertStaleDataEnabled;
     }
 
-    private static void UpdateLabel(System.Windows.Controls.TextBlock label, double value)
+    private static void UpdateLabel(System.Windows.Controls.TextBlock? label, double value)
     {
+        if (label is null) return;
         label.Text = $"{(int)value} mg/dL";
     }
 
@@ -60,6 +61,7 @@ public partial class AlertsPage : System.Windows.Controls.Page
 
     private void SldrUrgentHigh_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (!IsLoaded) return;
         UpdateLabel(LblUrgentHigh, e.NewValue);
         if (_loading) return;
         _monitor.Settings.AlertUrgentHighThresholdMgdL = (int)e.NewValue;
@@ -68,6 +70,7 @@ public partial class AlertsPage : System.Windows.Controls.Page
 
     private void SldrHigh_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (!IsLoaded) return;
         UpdateLabel(LblHigh, e.NewValue);
         if (_loading) return;
         _monitor.Settings.AlertHighThresholdMgdL = (int)e.NewValue;
@@ -76,6 +79,7 @@ public partial class AlertsPage : System.Windows.Controls.Page
 
     private void SldrLow_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (!IsLoaded) return;
         UpdateLabel(LblLow, e.NewValue);
         if (_loading) return;
         _monitor.Settings.AlertLowThresholdMgdL = (int)e.NewValue;
@@ -84,6 +88,7 @@ public partial class AlertsPage : System.Windows.Controls.Page
 
     private void SldrUrgentLow_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (!IsLoaded) return;
         UpdateLabel(LblUrgentLow, e.NewValue);
         if (_loading) return;
         _monitor.Settings.AlertUrgentLowThresholdMgdL = (int)e.NewValue;

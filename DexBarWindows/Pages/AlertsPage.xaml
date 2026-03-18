@@ -4,6 +4,13 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Background="Transparent"
       FontFamily="Segoe UI">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/DarkCard.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24,20,24,24" MaxWidth="520">
@@ -137,7 +144,7 @@
                     <StackPanel>
                         <TextBlock Text="Rising fast" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Alert when glucose is rising quickly (↑↑)"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglRisingFast"
@@ -150,7 +157,7 @@
                     <StackPanel>
                         <TextBlock Text="Dropping fast" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Alert when glucose is dropping quickly (↓↓)"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglDroppingFast"
@@ -170,7 +177,7 @@
                     <StackPanel>
                         <TextBlock Text="Stale data alert" FontSize="13" Foreground="#F0F0F2" />
                         <TextBlock Text="Alert when no new readings for 20 minutes"
-                                   FontSize="11" Foreground="#A0A0A8" />
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch x:Name="TglStaleData"
