@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>DexBar Windows</title>
+        <link>https://github.com/SucculentGoose/dexbar</link>
+        <description>DexBar Windows releases</description>
+        <language>en</language>
+        <item>
+            <title>DexBar Windows 1.5.2</title>
+            <pubDate>Fri, 13 Mar 2026 00:40:23 +0000</pubDate>
+            <sparkle:version>1.5.2</sparkle:version>
+            <sparkle:shortVersionString>1.5.2</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.5.2/dexbar-windows-x86_64-v1.5.2.zip"
+                length="0"
+                type="application/octet-stream"
+            />
+        </item>
+        <!-- Windows releases are added here automatically by the GitHub Actions release workflow -->
+    </channel>
+</rss>

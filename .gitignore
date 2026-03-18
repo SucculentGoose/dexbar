@@ -58,3 +58,20 @@ Pods/
 
 # Archives
 *.xcarchive
+
+# Git worktrees
+.worktrees/
+
+# .NET
+bin/
+obj/
+out/
+out-test/
+installer-output/
+*.exe
+*.user
+*.suo
+.vs/
+
+
+.superpowers

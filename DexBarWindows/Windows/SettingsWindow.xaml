@@ -1,0 +1,113 @@
+<Window
+    x:Class="DexBarWindows.Windows.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="DexBar Settings"
+    Width="680"
+    Height="520"
+    MinWidth="600"
+    MinHeight="480"
+    Background="#2C2C2E"
+    WindowStartupLocation="CenterScreen"
+    TextElement.Foreground="#F0F0F2"
+    FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style TargetType="{x:Type ui:CardControl}">
+            <Setter Property="Background" Value="#38383A" />
+            <Setter Property="BorderBrush" Value="#48484A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ui:CardControl}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                  Content="{TemplateBinding Header}"
+                                                  VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1"
+                                                  VerticalAlignment="Center"
+                                                  Margin="12,0,0,0" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left sidebar -->
+        <Border Grid.Column="0"
+                Background="#1C1C1E"
+                BorderBrush="#3A3A3E"
+                BorderThickness="0,0,1,0">
+            <ListBox x:Name="NavList"
+                     SelectionChanged="NavList_SelectionChanged"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Margin="8,12,8,8"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="10,8" />
+                        <Setter Property="FontSize" Value="13" />
+                        <Setter Property="Foreground" Value="#D0D0D8" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="ItemBorder"
+                                            Background="{TemplateBinding Background}"
+                                            CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="#0A84FF22" />
+                                            <Setter Property="Foreground" Value="#0A84FF" />
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="#2A2A2E" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBoxItem Content="Account" Tag="Account" />
+                <ListBoxItem Content="Display" Tag="Display" />
+                <ListBoxItem Content="Alerts" Tag="Alerts" />
+                <ListBoxItem Content="About" Tag="About" />
+                <ListBoxItem Content="Disclaimer" Tag="Disclaimer" />
+            </ListBox>
+        </Border>
+
+        <!-- Right content area -->
+        <Frame x:Name="ContentFrame"
+               Grid.Column="1"
+               NavigationUIVisibility="Hidden"
+               Background="#2C2C2E" />
+    </Grid>
+
+</Window>

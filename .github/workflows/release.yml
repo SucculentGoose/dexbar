@@ -155,10 +155,13 @@ jobs:
           footer = """
           ---
           ### Installation
-          1. Download **DexBar-v{version}.zip** below and unzip it
-          2. Drag **DexBar.app** to your `/Applications` folder
-          3. **First launch:** run `xattr -cr /Applications/DexBar.app` in Terminal if macOS blocks it
-          4. Click the menu bar icon → **Settings** → enter your Dexcom credentials
+          **macOS:** Download **DexBar-v{version}.zip**, unzip, drag to `/Applications`. First launch: `xattr -cr /Applications/DexBar.app`
+
+          **Windows:** Download **DexBarSetup-v{version}.exe** and run the installer.
+
+          **Linux:** Download the tarball and run `install.sh`.
+
+          Then click the tray/menu bar icon → **Settings** → enter your Dexcom credentials.
           """.format(version=open("VERSION").read().strip())
           with open("release_notes.md", "w") as f:
               f.write(notes + "\n" + footer)
@@ -270,3 +273,111 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
 
+  build-windows:
+    name: Build Windows Binary
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Read version
+        shell: pwsh
+        run: echo "APP_VERSION=$(Get-Content VERSION)" >> $env:GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Stamp version into csproj
+        shell: pwsh
+        run: |
+          $csproj = "DexBarWindows/DexBarWindows.csproj"
+          (Get-Content $csproj) -replace '<Version>.*</Version>', "<Version>${{ env.APP_VERSION }}</Version>" |
+            Set-Content $csproj
+
+      - name: Publish app
+        run: >
+          dotnet publish DexBarWindows/DexBarWindows.csproj
+          -c Release
+          -r win-x64
+          --self-contained
+          -p:Version=${{ env.APP_VERSION }}
+
+      - name: Build installer with Inno Setup
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          $iss = "DexBarWindows/installer.iss"
+          (Get-Content $iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$env:APP_VERSION`"" |
+            Set-Content $iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $iss
+
+      - name: Rename installer
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+        run: |
+          Move-Item "DexBarWindows/installer-output/DexBarSetup-$env:APP_VERSION.exe" `
+                    "DexBarSetup-v$env:APP_VERSION.exe"
+
+      - name: Upload Windows installer to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          files: DexBarSetup-v${{ env.APP_VERSION }}.exe
+
+      - name: Update appcast-windows.xml
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+        shell: pwsh
+        run: |
+          $script = @'
+          import os
+          from datetime import datetime, timezone
+
+          version  = os.environ["APP_VERSION"]
+          pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+          dl_url   = f"https://github.com/SucculentGoose/dexbar/releases/download/v{version}/DexBarSetup-v{version}.exe"
+          size     = os.path.getsize(f"DexBarSetup-v{version}.exe")
+
+          item = (
+              "        <item>\n"
+              f"            <title>DexBar Windows {version}</title>\n"
+              f"            <pubDate>{pub_date}</pubDate>\n"
+              f"            <sparkle:version>{version}</sparkle:version>\n"
+              f"            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>\n"
+              "            <enclosure\n"
+              f'                url="{dl_url}"\n'
+              f'                length="{size}"\n'
+              '                type="application/octet-stream"\n'
+              "            />\n"
+              "        </item>"
+          )
+
+          placeholder = "        <!-- Windows releases are added here automatically by the GitHub Actions release workflow -->"
+          with open("appcast-windows.xml", "r") as f:
+              content = f.read()
+          content = content.replace(placeholder, item + "\n" + placeholder)
+          with open("appcast-windows.xml", "w") as f:
+              f.write(content)
+          '@
+          $script | python3 -
+
+      - name: Commit updated appcast-windows.xml
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add appcast-windows.xml
+          git commit -m "chore: update windows appcast for v${{ env.APP_VERSION }}"
+          git pull --rebase origin main
+          git push origin HEAD:main

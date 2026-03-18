@@ -5,6 +5,25 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-18
+
+### Added (Windows)
+- **Windows support** — native WPF system tray app with the same features as the macOS and Linux versions
+- **Inno Setup installer** — `DexBarSetup.exe` with Start Menu shortcuts, optional desktop shortcut, optional launch-at-startup
+- **Auto-update** — checks `appcast-windows.xml` every 4 hours; balloon notification with one-click install
+- **Glucose chart** — custom-rendered chart with 3h/6h/12h/24h range selector
+- **Time in Range** — stacked bar with 2d/7d/14d/30d/90d range selector and GMI display
+- **Modern tray icon** — auto-fitted glucose number with rounded background badge
+- **Dark theme settings** — tabbed settings window (Account, Display, Alerts, About, Disclaimer)
+
+### Changed
+- Release workflow now builds a Windows installer (Inno Setup) instead of a standalone zip
+
+### Fixed
+- Fixed FluentWindow backdrop crash (`ExtendsContentIntoTitleBar` error) by migrating to plain WPF Window
+- Fixed popup window instantly closing on tray icon click (deactivation guard)
+- Fixed chart not rendering (`UserControl.OnRender` drawing behind template background)
+
 ## [1.5.2] - 2026-03-13
 
 ### Fixed

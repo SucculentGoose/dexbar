@@ -1,0 +1,191 @@
+<Page x:Class="DexBarWindows.Pages.AlertsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Background="Transparent"
+      FontFamily="Segoe UI">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/DarkCard.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24,20,24,24" MaxWidth="520">
+
+            <!-- Page title -->
+            <TextBlock Text="Alerts"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Foreground="#F0F0F2"
+                       Margin="0,0,0,8" />
+
+            <!-- Description -->
+            <TextBlock Text="Thresholds define color zones and optional notifications. Values must stay ordered: Urgent Low &lt; Low &lt; High &lt; Urgent High."
+                       FontSize="12"
+                       Foreground="#A0A0A8"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,20" />
+
+            <!-- GLUCOSE LEVEL ALERTS -->
+            <TextBlock Text="GLUCOSE LEVEL ALERTS"
+                       FontSize="10"
+                       FontWeight="SemiBold"
+                       Foreground="#64646C"
+                       Margin="0,0,0,8" />
+
+            <!-- Urgent High -->
+            <ui:CardControl Margin="0,0,0,2">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Urgent High" FontSize="13" Foreground="#F0F0F2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Slider x:Name="SldrUrgentHigh"
+                                    Minimum="181" Maximum="400"
+                                    Width="180"
+                                    VerticalAlignment="Center"
+                                    ValueChanged="SldrUrgentHigh_ValueChanged" />
+                            <TextBlock x:Name="LblUrgentHigh"
+                                       FontSize="12"
+                                       Foreground="#A0A0A8"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglUrgentHigh"
+                                 Checked="TglUrgentHigh_Toggled"
+                                 Unchecked="TglUrgentHigh_Toggled" />
+            </ui:CardControl>
+
+            <!-- High -->
+            <ui:CardControl Margin="0,2,0,2">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="High" FontSize="13" Foreground="#F0F0F2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Slider x:Name="SldrHigh"
+                                    Minimum="120" Maximum="399"
+                                    Width="180"
+                                    VerticalAlignment="Center"
+                                    ValueChanged="SldrHigh_ValueChanged" />
+                            <TextBlock x:Name="LblHigh"
+                                       FontSize="12"
+                                       Foreground="#A0A0A8"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglHigh"
+                                 Checked="TglHigh_Toggled"
+                                 Unchecked="TglHigh_Toggled" />
+            </ui:CardControl>
+
+            <!-- Low -->
+            <ui:CardControl Margin="0,2,0,2">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Low" FontSize="13" Foreground="#F0F0F2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Slider x:Name="SldrLow"
+                                    Minimum="56" Maximum="180"
+                                    Width="180"
+                                    VerticalAlignment="Center"
+                                    ValueChanged="SldrLow_ValueChanged" />
+                            <TextBlock x:Name="LblLow"
+                                       FontSize="12"
+                                       Foreground="#A0A0A8"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglLow"
+                                 Checked="TglLow_Toggled"
+                                 Unchecked="TglLow_Toggled" />
+            </ui:CardControl>
+
+            <!-- Urgent Low -->
+            <ui:CardControl Margin="0,2,0,16">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Urgent Low" FontSize="13" Foreground="#F0F0F2" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Slider x:Name="SldrUrgentLow"
+                                    Minimum="40" Maximum="109"
+                                    Width="180"
+                                    VerticalAlignment="Center"
+                                    ValueChanged="SldrUrgentLow_ValueChanged" />
+                            <TextBlock x:Name="LblUrgentLow"
+                                       FontSize="12"
+                                       Foreground="#A0A0A8"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglUrgentLow"
+                                 Checked="TglUrgentLow_Toggled"
+                                 Unchecked="TglUrgentLow_Toggled" />
+            </ui:CardControl>
+
+            <!-- TREND ALERTS -->
+            <TextBlock Text="TREND ALERTS"
+                       FontSize="10"
+                       FontWeight="SemiBold"
+                       Foreground="#64646C"
+                       Margin="0,0,0,8" />
+
+            <ui:CardControl Margin="0,0,0,2">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Rising fast" FontSize="13" Foreground="#F0F0F2" />
+                        <TextBlock Text="Alert when glucose is rising quickly (↑↑)"
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglRisingFast"
+                                 Checked="TglRisingFast_Toggled"
+                                 Unchecked="TglRisingFast_Toggled" />
+            </ui:CardControl>
+
+            <ui:CardControl Margin="0,2,0,16">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Dropping fast" FontSize="13" Foreground="#F0F0F2" />
+                        <TextBlock Text="Alert when glucose is dropping quickly (↓↓)"
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglDroppingFast"
+                                 Checked="TglDroppingFast_Toggled"
+                                 Unchecked="TglDroppingFast_Toggled" />
+            </ui:CardControl>
+
+            <!-- NO DATA -->
+            <TextBlock Text="NO DATA"
+                       FontSize="10"
+                       FontWeight="SemiBold"
+                       Foreground="#64646C"
+                       Margin="0,0,0,8" />
+
+            <ui:CardControl Margin="0,0,0,0">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Stale data alert" FontSize="13" Foreground="#F0F0F2" />
+                        <TextBlock Text="Alert when no new readings for 20 minutes"
+                                   FontSize="11" Foreground="#A0A0A8" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch x:Name="TglStaleData"
+                                 Checked="TglStaleData_Toggled"
+                                 Unchecked="TglStaleData_Toggled" />
+            </ui:CardControl>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Page>

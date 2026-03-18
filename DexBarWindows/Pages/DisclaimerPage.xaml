@@ -1,0 +1,75 @@
+<Page x:Class="DexBarWindows.Pages.DisclaimerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Background="Transparent"
+      FontFamily="Segoe UI">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Themes/DarkCard.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="24,20,24,24">
+        <StackPanel MaxWidth="520">
+
+            <!-- Page title -->
+            <TextBlock Text="Disclaimer"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Foreground="#F0F0F2"
+                       Margin="0,0,0,20" />
+
+            <TextBlock Text="NOT A MEDICAL DEVICE"
+                       FontSize="14"
+                       FontWeight="Bold"
+                       Foreground="#FF453A"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,12" />
+
+            <TextBlock FontSize="12"
+                       Foreground="#C0C0C8"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       Margin="0,0,0,12">
+DexBar is an unofficial convenience tool and is not a medical device. It is not approved, certified, or intended for use in medical diagnosis, treatment, or any clinical decision-making.
+            </TextBlock>
+
+            <TextBlock FontSize="12"
+                       Foreground="#C0C0C8"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       Margin="0,0,0,12">
+Blood glucose data displayed by DexBar is sourced from the Dexcom Share service and may be delayed, inaccurate, or unavailable due to network conditions, sensor issues, or API changes beyond our control.
+            </TextBlock>
+
+            <TextBlock FontSize="12"
+                       Foreground="#C0C0C8"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       Margin="0,0,0,12">
+Always verify your blood sugar using your official Dexcom receiver, the Dexcom app, or another clinically approved method before making any medical decisions — including adjusting insulin, food intake, or physical activity.
+            </TextBlock>
+
+            <TextBlock FontSize="12"
+                       Foreground="#C0C0C8"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       Margin="0,0,0,12">
+Do not rely solely on this app. In an emergency, contact emergency services or a qualified healthcare professional immediately.
+            </TextBlock>
+
+            <TextBlock FontSize="12"
+                       Foreground="#A0A0A8"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       FontStyle="Italic">
+DexBar is not affiliated with or endorsed by Dexcom, Inc.
+            </TextBlock>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Page>
