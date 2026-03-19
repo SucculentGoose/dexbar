@@ -265,6 +265,19 @@
                 sparkle:edSignature="t4TxsikM9pICtPU4cq7plZF8q36F0CD+gce6MfCxKgzsss3hnNQJNxuFrMFjqpc4oZ2xUeonvpIEuuITE4xBBw=="
             />
         </item>
+        <item>
+            <title>DexBar 1.7.0</title>
+            <pubDate>Thu, 19 Mar 2026 14:35:06 +0000</pubDate>
+            <sparkle:version>1.7.0</sparkle:version>
+            <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.7.0/DexBar-v1.7.0.zip"
+                length="4420266"
+                type="application/octet-stream"
+                sparkle:edSignature="uxRF/iCkjnlWWwmB5g/6OV+MWG7OuR8WA5vjdfuUn8JfhfId1pj4+jlMVcANxc7X4du0Kzu+fXuEJN7/RjzaAw=="
+            />
+        </item>
         <!-- Releases are added here automatically by the GitHub Actions release workflow -->
     </channel>
 </rss>
