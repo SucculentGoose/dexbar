@@ -284,7 +284,11 @@ jobs:
           git add appcast-linux.xml DexBarLinux/Sources/AppVersion.swift
           git commit -m "chore: update linux appcast for v${{ env.APP_VERSION }}"
           git pull --rebase origin main
-          git push origin HEAD:main
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ env.APP_VERSION }}$"; then
+            git push --no-tags origin HEAD:main
+          else
+            git push origin HEAD:main
+          fi
 
   build-windows:
     name: Build Windows Binary
