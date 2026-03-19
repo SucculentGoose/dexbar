@@ -203,9 +203,21 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libdbusmenu-glib-dev \
-            libgtk4-layer-shell-dev \
             libsecret-1-dev \
-            libnotify-dev
+            libnotify-dev \
+            meson \
+            ninja-build \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone --depth 1 https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build -Dexamples=false -Ddocs=false -Dtests=false
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Stamp version into AppVersion.swift
         run: |
