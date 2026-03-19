@@ -60,6 +60,17 @@
                 type="application/octet-stream"
             />
         </item>
+        <item>
+            <title>DexBar Linux 1.7.0</title>
+            <pubDate>Thu, 19 Mar 2026 14:36:41 +0000</pubDate>
+            <sparkle:version>1.7.0</sparkle:version>
+            <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.7.0/dexbar-linux-x86_64-v1.7.0.tar.gz"
+                length="1517150"
+                type="application/octet-stream"
+            />
+        </item>
         <!-- Linux releases are added here automatically by the GitHub Actions release workflow -->
     </channel>
 </rss>
