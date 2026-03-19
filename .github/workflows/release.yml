@@ -400,5 +400,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appcast-windows.xml
           git commit -m "chore: update windows appcast for v${{ env.APP_VERSION }}"
+          git stash
           git pull --rebase origin main
+          git stash pop
           git push origin HEAD:main
