@@ -140,8 +140,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appcast.xml project.yml
           git commit -m "chore: update appcast for v${{ env.APP_VERSION }}"
-          git tag "v${{ env.APP_VERSION }}"
-          git push origin HEAD:main --tags
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ env.APP_VERSION }}$"; then
+            git push --no-tags origin HEAD:main
+          else
+            git tag "v${{ env.APP_VERSION }}"
+            git push origin HEAD:main --tags
+          fi
 
       - name: Extract release notes from CHANGELOG
         run: |
