@@ -27,6 +27,17 @@
                 type="application/octet-stream"
             />
         </item>
+        <item>
+            <title>DexBar Windows 1.7.0</title>
+            <pubDate>Thu, 19 Mar 2026 13:24:11 +0000</pubDate>
+            <sparkle:version>1.7.0</sparkle:version>
+            <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.7.0/DexBarSetup-v1.7.0.exe"
+                length="51958543"
+                type="application/octet-stream"
+            />
+        </item>
         <!-- Windows releases are added here automatically by the GitHub Actions release workflow -->
     </channel>
 </rss>
