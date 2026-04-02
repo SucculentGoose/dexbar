@@ -75,4 +75,5 @@ installer-output/
 
 
 .superpowers
-docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/plans/
