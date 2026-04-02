@@ -297,7 +297,7 @@ jobs:
   build-windows:
     name: Build Windows Binary
     runs-on: windows-latest
-    needs: build
+    needs: build-linux
     permissions:
       contents: write
 
@@ -421,6 +421,11 @@ jobs:
 
       - name: Read version
         run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+
+      - name: Stamp version into metadata.json
+        run: |
+          sed -i 's/"Version": ".*"/"Version": "${{ env.APP_VERSION }}"/' \
+            DexBarKDE/plasmoid/metadata.json
 
       - name: Package plasmoid
         run: |
