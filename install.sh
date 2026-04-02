@@ -128,6 +128,27 @@ StartupNotify=false"
     echo ""
   fi
 
+  # ── KDE Plasma widget (optional) ──────────────────────────────────────────
+  if command -v kpackagetool6 &>/dev/null && command -v plasmashell &>/dev/null; then
+    echo ""
+    read -r -p "KDE Plasma detected. Install DexBar as a Plasma widget too? [y/N] " install_kde
+    if [[ "${install_kde}" =~ ^[Yy]$ ]]; then
+      PLASMOID_DIR="$(dirname "$0")/DexBarKDE"
+      if [[ -d "${PLASMOID_DIR}/plasmoid" ]]; then
+        echo "Packaging plasmoid..."
+        (cd "${PLASMOID_DIR}" && ./package.sh)
+        kpackagetool6 --install "${PLASMOID_DIR}/org.kde.plasma.dexbar.plasmoid" \
+            --type Plasma/Applet 2>/dev/null \
+        || kpackagetool6 --upgrade "${PLASMOID_DIR}/org.kde.plasma.dexbar.plasmoid" \
+            --type Plasma/Applet
+        echo "DexBar Plasma widget installed."
+        echo "Right-click the panel → Add Widgets → search 'DexBar' to add it."
+      else
+        echo "DexBarKDE directory not found — skipping widget install."
+      fi
+    fi
+  fi
+
   # ── done ─────────────────────────────────────────────────────────────────────
   success "DexBar installed to ${LINUX_INSTALL_DIR}/dexbar"
   echo ""
