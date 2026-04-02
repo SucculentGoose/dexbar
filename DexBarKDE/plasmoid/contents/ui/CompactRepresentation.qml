@@ -4,24 +4,26 @@ import org.kde.plasma.components 3.0 as PlasmaComponents3
 import org.kde.plasma.plasmoid
 import org.kde.kirigami 2.20 as Kirigami
 
-// Compact view: shown in the panel. Displays "94 ↑" in glucose color,
+// Compact view: shown in the panel. Displays "94 → +3" in glucose color,
 // or a spinner while loading, or "--" on error/disconnect.
-Item {
+MouseArea {
     id: root
+
+    required property PlasmoidItem plasmoidItem
 
     // Provided by main.qml via compactRepresentation binding
     property var reading: null          // { value, trend, trendRate, timestampMs }
+    property string delta: ""           // pre-formatted delta string e.g. "+3"
     property bool loading: false
     property bool hasError: false
-    property bool useMmol: Plasmoid.configuration.useMmol
+    property bool useMmol: false
 
-    implicitWidth: label.implicitWidth + 8
-    implicitHeight: label.implicitHeight
+    Layout.minimumWidth: label.implicitWidth + Kirigami.Units.largeSpacing * 2
+    Layout.preferredWidth: Layout.minimumWidth
 
-    // Tap to toggle popup
-    TapHandler {
-        onTapped: Plasmoid.expanded = !Plasmoid.expanded
-    }
+    property bool wasExpanded: false
+    onPressed: wasExpanded = plasmoidItem.expanded
+    onClicked: plasmoidItem.expanded = !wasExpanded
 
     PlasmaComponents3.BusyIndicator {
         id: busyIndicator
@@ -38,21 +40,23 @@ Item {
         visible: !busyIndicator.visible
         text: {
             if (root.reading === null) return "--"
-            const val = root.useMmol
+            var val = root.useMmol
                 ? (root.reading.value / 18.0).toFixed(1)
                 : String(root.reading.value)
-            const arrow = _trendArrow(root.reading.trend)
-            return val + " " + arrow
+            var arrow = _trendArrow(root.reading.trend)
+            var parts = val + " " + arrow
+            if (root.delta !== "") parts += " " + root.delta
+            return parts
         }
         color: root.reading !== null ? _glucoseColor(root.reading.value) : Kirigami.Theme.disabledTextColor
         font.bold: true
         font.pointSize: Math.max(8, Kirigami.Theme.defaultFont.pointSize)
     }
 
-    // ── Inline helpers (avoid .pragma library import issues in subcomponents) ──
+    // ── Inline helpers ──
 
     function _trendArrow(trend) {
-        const map = {
+        var map = {
             "DoubleUp": "⇈", "SingleUp": "↑", "FortyFiveUp": "↗",
             "Flat": "→", "FortyFiveDown": "↘", "SingleDown": "↓",
             "DoubleDown": "⇊"

@@ -109,11 +109,12 @@ function fetchSessionId(baseUrl, accountId, password, onSuccess, onError) {
 
 // Fetch up to maxCount readings from the last 24h.
 // Calls onSuccess([{ value, trend, trendRate, timestampMs }]) or onError(string).
-function fetchReadings(baseUrl, sessionId, maxCount, onSuccess, onError) {
+function fetchReadings(baseUrl, sessionId, maxCount, onSuccess, onError, minutes) {
+    const mins = minutes || 1440
     const url = baseUrl
         + "/Publisher/ReadPublisherLatestGlucoseValues"
         + "?sessionId=" + encodeURIComponent(sessionId)
-        + "&minutes=1440"
+        + "&minutes=" + String(mins)
         + "&maxCount=" + String(maxCount)
     const xhr = new XMLHttpRequest()
     xhr.onreadystatechange = function() {

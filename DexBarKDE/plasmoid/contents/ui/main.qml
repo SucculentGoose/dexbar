@@ -2,10 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.notification 1.0
-import "../../contents/code/dexcom.js" as Dexcom
+import "../code/dexcom.js" as Dexcom
 
 PlasmoidItem {
     id: root
+
+    preferredRepresentation: compactRepresentation
 
     // ── State ──────────────────────────────────────────────────────────────
     property string _sessionId: ""
@@ -16,10 +18,15 @@ PlasmoidItem {
     property bool isLoading: false
     property bool isConnected: false
     property var _lastAlertMs: ({})          // { alertType: timestampMs }
+    property string glucoseDelta: ""         // formatted delta string e.g. "+3" or "-0.2"
+    property var lastRefreshMs: 0            // timestamp of last successful fetch
+    property var nextRefreshMs: 0            // timestamp of next scheduled fetch
 
     // ── Representations ────────────────────────────────────────────────────
     compactRepresentation: CompactRepresentation {
+        plasmoidItem: root
         reading: root.currentReading
+        delta: root.glucoseDelta
         loading: root.isLoading
         hasError: root.errorMessage !== ""
         useMmol: Plasmoid.configuration.useMmol
@@ -32,6 +39,8 @@ PlasmoidItem {
         isLoading: root.isLoading
         isConnected: root.isConnected
         useMmol: Plasmoid.configuration.useMmol
+        lastRefreshMs: root.lastRefreshMs
+        nextRefreshMs: root.nextRefreshMs
         onLoginRequested: function(u, p, r) { root.login(u, p, r) }
         onRefreshRequested: root.fetchReadings()
         onDisconnectRequested: root.disconnect()
@@ -100,12 +109,14 @@ PlasmoidItem {
     function fetchReadings() {
         if (!root._sessionId) return
         root.isLoading = true
-        Dexcom.fetchReadings(root._baseUrl, root._sessionId, 288,
+        Dexcom.fetchReadings(root._baseUrl, root._sessionId, 26000,
             function(readings) {
                 root.currentReading = readings[0]
                 root.readingHistory = readings
+                root.glucoseDelta = root._computeDelta(readings)
                 root.errorMessage = ""
                 root.isLoading = false
+                root.lastRefreshMs = Date.now()
                 root._checkAlerts(readings[0])
                 root._scheduleNextPoll(readings[0].timestampMs)
             },
@@ -120,7 +131,8 @@ PlasmoidItem {
                     pollTimer.interval = 60000  // retry in 1 minute on transient error
                     pollTimer.restart()
                 }
-            }
+            },
+            129600  // 90 days in minutes
         )
     }
 
@@ -129,11 +141,25 @@ PlasmoidItem {
         root.isConnected = false
         root.currentReading = null
         root.readingHistory = []
+        root.glucoseDelta = ""
         root.errorMessage = ""
+        root.lastRefreshMs = 0
+        root.nextRefreshMs = 0
         pollTimer.stop()
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
+
+    function _computeDelta(readings) {
+        if (readings.length < 2) return ""
+        var delta = readings[0].value - readings[1].value
+        var useMmol = Plasmoid.configuration.useMmol
+        if (useMmol) {
+            var dMmol = delta / 18.0
+            return dMmol >= 0 ? "+" + dMmol.toFixed(1) : dMmol.toFixed(1)
+        }
+        return delta >= 0 ? "+" + delta : String(delta)
+    }
 
     function _setError(msg) {
         root.errorMessage = msg
@@ -155,6 +181,7 @@ PlasmoidItem {
         const nextMs = Math.max(15000, 315000 - msSinceReading)
         pollTimer.interval = nextMs
         pollTimer.restart()
+        root.nextRefreshMs = nowMs + nextMs
     }
 
     // Send a Plasma notification if outside cooldown (15 min)

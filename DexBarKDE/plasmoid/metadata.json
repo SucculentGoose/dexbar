@@ -9,12 +9,14 @@
         ],
         "Category": "Utilities",
         "Description": "Real-time Dexcom blood glucose readings in your KDE panel",
-        "Icon": "heart",
+        "Icon": "dexbar",
         "Id": "org.kde.plasma.dexbar",
         "License": "MIT",
         "Name": "DexBar",
         "Version": "1.0.0",
         "Website": "https://github.com/SucculentGoose/dexbar"
     },
-    "X-Plasma-API-Minimum-Version": "6.0"
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
 }
