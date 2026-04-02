@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile/>
+    <group name="General">
+        <entry name="username" type="String">
+            <default></default>
+        </entry>
+        <entry name="password" type="String">
+            <default></default>
+        </entry>
+        <!-- "US", "Outside US", or "Japan" -->
+        <entry name="region" type="String">
+            <default>US</default>
+        </entry>
+        <entry name="useMmol" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Polling interval in seconds (default 300 = 5 minutes) -->
+        <entry name="pollInterval" type="Int">
+            <default>300</default>
+        </entry>
+        <entry name="enableAlerts" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="alertHighMgdl" type="Int">
+            <default>180</default>
+        </entry>
+        <entry name="alertLowMgdl" type="Int">
+            <default>70</default>
+        </entry>
+        <entry name="alertUrgentHighMgdl" type="Int">
+            <default>250</default>
+        </entry>
+        <entry name="alertUrgentLowMgdl" type="Int">
+            <default>55</default>
+        </entry>
+    </group>
+</kcfg>
