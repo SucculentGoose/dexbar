@@ -191,11 +191,11 @@ PlasmaExtras.Representation {
             // ── Chart with axes
             Item {
                 Layout.fillWidth: true
-                height: 120
+                height: 180
                 visible: root.history.length > 1
 
                 // Y-axis labels
-                Column {
+                Item {
                     id: yAxis
                     anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
                     width: 28
@@ -570,7 +570,7 @@ PlasmaExtras.Representation {
     function _xAxisLabels() {
         if (root.history.length < 2) return []
         var maxReadings = root.chartRangeHours * 12
-        var slice = root.history.slice(0, maxReadings)
+        var slice = root.history.slice(0, maxReadings).reverse()  // oldest-first
         var count = Math.min(4, slice.length)
         var labels = []
         for (var i = 0; i < count; i++) {
@@ -582,13 +582,13 @@ PlasmaExtras.Representation {
 
     function _yAxisLabels() {
         var minVal = 40, maxVal = 300, pad = 6
-        var chartHeight = 120 - 14 - pad * 2  // total height minus x-axis minus padding
-        var ticks = [75, 100, 125, 150, 175, 200, 250]
+        var chartHeight = 180 - 14  // total item height minus x-axis row
+        var ticks = [75, 100, 150, 200, 250]
         var labels = []
         for (var i = 0; i < ticks.length; i++) {
             var v = ticks[i]
             var yNorm = (v - minVal) / (maxVal - minVal)
-            var y = chartHeight - yNorm * chartHeight + pad
+            var y = chartHeight - pad - yNorm * (chartHeight - pad * 2)
             labels.push({ label: String(v), y: y })
         }
         return labels
