@@ -128,6 +128,37 @@ StartupNotify=false"
     echo ""
   fi
 
+  # ── KDE Plasma widget (optional) ──────────────────────────────────────────
+  if command -v kpackagetool6 &>/dev/null && command -v plasmashell &>/dev/null; then
+    echo ""
+    read -r -p "KDE Plasma detected. Install DexBar as a Plasma widget too? [y/N] " install_kde
+    if [[ "${install_kde}" =~ ^[Yy]$ ]]; then
+      PLASMOID_DIR="$(dirname "$0")/DexBarKDE"
+      if [[ -d "${PLASMOID_DIR}/plasmoid" ]]; then
+        echo "Packaging plasmoid..."
+        (cd "${PLASMOID_DIR}" && ./package.sh)
+        kpackagetool6 --install "${PLASMOID_DIR}/org.kde.plasma.dexbar.plasmoid" \
+            --type Plasma/Applet 2>/dev/null \
+        || kpackagetool6 --upgrade "${PLASMOID_DIR}/org.kde.plasma.dexbar.plasmoid" \
+            --type Plasma/Applet
+
+        # Install app icon into hicolor theme so Plasma can find it
+        ICON_SRC="${PLASMOID_DIR}/plasmoid/contents/icons/dexbar.png"
+        if [[ -f "$ICON_SRC" ]]; then
+          ICON_DIR="${HOME}/.local/share/icons/hicolor/256x256/apps"
+          mkdir -p "$ICON_DIR"
+          cp "$ICON_SRC" "$ICON_DIR/dexbar.png"
+          gtk-update-icon-cache -f "${HOME}/.local/share/icons/hicolor/" 2>/dev/null || true
+        fi
+
+        echo "DexBar Plasma widget installed."
+        echo "Right-click the panel → Add Widgets → search 'DexBar' to add it."
+      else
+        echo "DexBarKDE directory not found — skipping widget install."
+      fi
+    fi
+  fi
+
   # ── done ─────────────────────────────────────────────────────────────────────
   success "DexBar installed to ${LINUX_INSTALL_DIR}/dexbar"
   echo ""

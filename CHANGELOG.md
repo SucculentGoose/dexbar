@@ -5,6 +5,19 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-04-02
+
+### Added (KDE Plasma)
+- **KDE Plasma 6 widget** — native Plasmoid showing real-time Dexcom CGM glucose readings in the panel
+- **Compact panel view** — glucose value, trend arrow, and delta displayed in the panel bar
+- **Popup with glucose chart** — interactive chart with 3h/6h/12h/24h range selector and hoverable data points with tooltips
+- **Time in Range** — colored bar with low/in-range/high percentages and 2d/7d/14d/30d/90d day range selector
+- **GMI (Glucose Management Indicator)** — calculated from available readings with data quality indicator
+- **Refresh countdown** — live countdown timer showing next data refresh
+- **Plasma notifications** — configurable alerts for high/low/urgent glucose levels with 15-minute cooldown
+- **Settings page** — configure Dexcom credentials, region (US/EU/JP/AU), units (mg/dL or mmol/L), and alert thresholds
+- **Packaging** — `package.sh` script, install.sh integration with KDE detection, custom DexBar icon
+
 ## [1.7.0] - 2026-03-18
 
 ### Changed (Linux)

@@ -222,7 +222,25 @@ Credentials are stored securely in KDE Wallet (or GNOME Keyring) via the Secret 
 - **Auto-update** — checks for updates on launch and daily; one-click install from the tray menu
 - **Credential storage** — passwords stored securely via the Secret Service D-Bus API (KDE Wallet / GNOME Keyring)
 
+### KDE Plasma Widget (optional)
 
+DexBar also ships as a native **KDE Plasma 6 widget** that lives in your panel:
+
+**Install via the wizard:**
+1. Right-click the panel → **Add Widgets** → **Get New Widgets** → **Install From File**
+2. Select `DexBarKDE/org.kde.plasma.dexbar.plasmoid`
+
+**Install from the command line:**
+```bash
+cd DexBarKDE && ./package.sh
+kpackagetool6 --install org.kde.plasma.dexbar.plasmoid --type Plasma/Applet
+```
+
+**First launch:** Click the widget in the panel → enter your Dexcom Share credentials → Connect.
+
+**Requirements:** KDE Plasma 6.0+, `org.kde.notification` (included in `plasma-workspace`)
+
+> **Note:** Credentials are stored in your Plasma configuration file (`~/.config/plasma-org.kde.plasma.desktop-appletsrc`). Consider restricting file permissions (`chmod 600`) or using a dedicated Dexcom Share account.
 
 ## Windows
 
