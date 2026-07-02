@@ -26,6 +26,8 @@ final class TrayIcon {
     // Current icon state
     private var currentIconName: String = "dialog-information"
 
+    private var pendingInstall: (() -> Void)?
+
     // Directory where we write per-update SVG icon files.
     private let iconDir: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser
@@ -228,6 +230,7 @@ final class TrayIcon {
         dbusmenu_menuitem_property_set_bool(updateItem, DBUSMENU_MENUITEM_PROP_VISIBLE, 0)
         dbusmenu_menuitem_child_append(root, updateItem)
         self.updateMenuItem = updateItem
+        connectItemActivated(updateItem) { [weak self] in self?.pendingInstall?() }
 
         let updateSep = dbusmenu_menuitem_new()!
         dbusmenu_menuitem_property_set(updateSep, DBUSMENU_MENUITEM_PROP_TYPE, DBUSMENU_CLIENT_TYPES_SEPARATOR)
@@ -369,7 +372,7 @@ final class TrayIcon {
         dbusmenu_menuitem_property_set(item, DBUSMENU_MENUITEM_PROP_LABEL, "⬆ Install Update: v\(version)")
         dbusmenu_menuitem_property_set_bool(item, DBUSMENU_MENUITEM_PROP_VISIBLE, 1)
         dbusmenu_menuitem_property_set_bool(sep, DBUSMENU_MENUITEM_PROP_VISIBLE, 1)
-        connectItemActivated(item) { onInstall() }
+        pendingInstall = onInstall
     }
 
     /// Updates the label of the update menu item.

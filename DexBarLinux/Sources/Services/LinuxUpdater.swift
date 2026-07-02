@@ -39,19 +39,34 @@ final class LinuxUpdater {
     }
 
     private func parseLatest(from xml: String) -> (String, URL)? {
+        let itemPattern    = #"(?s)<item>(.*?)</item>"#
         let versionPattern = #"<sparkle:version>([^<]+)</sparkle:version>"#
         let urlPattern     = #"url="(https://[^"]+\.tar\.gz)""#
-        guard let versionRegex = try? NSRegularExpression(pattern: versionPattern),
+        guard let itemRegex    = try? NSRegularExpression(pattern: itemPattern),
+              let versionRegex = try? NSRegularExpression(pattern: versionPattern),
               let urlRegex     = try? NSRegularExpression(pattern: urlPattern) else { return nil }
-        let range    = NSRange(xml.startIndex..., in: xml)
-        let versions = versionRegex.matches(in: xml, range: range)
-        let urls     = urlRegex.matches(in: xml, range: range)
-        guard let lastVersion = versions.last, let lastURL = urls.last,
-              let vRange = Range(lastVersion.range(at: 1), in: xml),
-              let uRange = Range(lastURL.range(at: 1), in: xml) else { return nil }
-        let version = String(xml[vRange])
-        guard let url = URL(string: String(xml[uRange])) else { return nil }
-        return (version, url)
+
+        let fullRange = NSRange(xml.startIndex..., in: xml)
+        var best: (version: String, url: URL)?
+
+        for itemMatch in itemRegex.matches(in: xml, range: fullRange) {
+            guard let itemRange = Range(itemMatch.range(at: 1), in: xml) else { continue }
+            let item = String(xml[itemRange])
+            let itemFullRange = NSRange(item.startIndex..., in: item)
+
+            guard let versionMatch = versionRegex.firstMatch(in: item, range: itemFullRange),
+                  let urlMatch     = urlRegex.firstMatch(in: item, range: itemFullRange),
+                  let vRange = Range(versionMatch.range(at: 1), in: item),
+                  let uRange = Range(urlMatch.range(at: 1), in: item),
+                  let url = URL(string: String(item[uRange])) else { continue }
+
+            let version = String(item[vRange])
+            if best == nil || isNewer(version, than: best!.version) {
+                best = (version, url)
+            }
+        }
+
+        return best
     }
 
     // MARK: - Private: download + install + restart

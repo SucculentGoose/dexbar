@@ -21,6 +21,7 @@ PlasmoidItem {
     property string glucoseDelta: ""         // formatted delta string e.g. "+3" or "-0.2"
     property var lastRefreshMs: 0            // timestamp of last successful fetch
     property var nextRefreshMs: 0            // timestamp of next scheduled fetch
+    property bool _initialFetchDone: false
 
     // ── Representations ────────────────────────────────────────────────────
     compactRepresentation: CompactRepresentation {
@@ -52,7 +53,13 @@ PlasmoidItem {
         interval: 300000   // overridden after first successful reading
         repeat: false       // restarted manually to allow smart scheduling
         running: false
-        onTriggered: root.fetchReadings()
+        onTriggered: {
+            if (!root._sessionId) {
+                root._maybeAutoConnect()
+            } else {
+                root.fetchReadings()
+            }
+        }
     }
 
     // ── Notifications ──────────────────────────────────────────────────────
@@ -90,6 +97,7 @@ PlasmoidItem {
         root._baseUrl = Dexcom.BASE_URLS[region] || Dexcom.BASE_URLS["US"]
         root.isLoading = true
         root.errorMessage = ""
+        root._initialFetchDone = false
         Dexcom.fetchAccountId(root._baseUrl, username, password,
             function(accountId) {
                 Dexcom.fetchSessionId(root._baseUrl, accountId, password,
@@ -109,16 +117,19 @@ PlasmoidItem {
     function fetchReadings() {
         if (!root._sessionId) return
         root.isLoading = true
-        Dexcom.fetchReadings(root._baseUrl, root._sessionId, 26000,
+        const maxCount = root._initialFetchDone ? 2 : 26000
+        const minutes = root._initialFetchDone ? 1440 : 129600
+        Dexcom.fetchReadings(root._baseUrl, root._sessionId, maxCount,
             function(readings) {
-                root.currentReading = readings[0]
-                root.readingHistory = readings
-                root.glucoseDelta = root._computeDelta(readings)
+                root._initialFetchDone = true
+                root.readingHistory = Dexcom.mergeReadings(root.readingHistory, readings, 25920)
+                root.currentReading = root.readingHistory[0]
+                root.glucoseDelta = root._computeDelta(root.readingHistory)
                 root.errorMessage = ""
                 root.isLoading = false
                 root.lastRefreshMs = Date.now()
-                root._checkAlerts(readings[0])
-                root._scheduleNextPoll(readings[0].timestampMs)
+                root._checkAlerts(root.readingHistory[0])
+                root._scheduleNextPoll(root.readingHistory[0].timestampMs)
             },
             function(err) {
                 root.isLoading = false
@@ -128,11 +139,9 @@ PlasmoidItem {
                     root._maybeAutoConnect()
                 } else {
                     root._setError(err)
-                    pollTimer.interval = 60000  // retry in 1 minute on transient error
-                    pollTimer.restart()
                 }
             },
-            129600  // 90 days in minutes
+            minutes
         )
     }
 
@@ -145,6 +154,7 @@ PlasmoidItem {
         root.errorMessage = ""
         root.lastRefreshMs = 0
         root.nextRefreshMs = 0
+        root._initialFetchDone = false
         pollTimer.stop()
     }
 
@@ -164,6 +174,15 @@ PlasmoidItem {
     function _setError(msg) {
         root.errorMessage = msg
         root.isLoading = false
+        // Don't auto-retry credential failures — repeated bad logins can lock the account
+        if (msg.indexOf("Invalid") !== -1) return
+        const u = Plasmoid.configuration.username
+        const p = Plasmoid.configuration.password
+        if (u && p) {
+            pollTimer.interval = 60000  // retry in 1 minute on error
+            pollTimer.restart()
+            root.nextRefreshMs = Date.now() + 60000
+        }
     }
 
     function _maybeAutoConnect() {

@@ -54,6 +54,8 @@ public class GlucoseMonitor : IDisposable
 
     private readonly Dictionary<string, DateTime> _alertCooldowns = new();
 
+    private int _consecutiveStalePolls;
+
     // -------------------------------------------------------------------------
     // Observable state (always accessed on UI thread via _syncContext)
     // -------------------------------------------------------------------------
@@ -139,12 +141,12 @@ public class GlucoseMonitor : IDisposable
             int low = 0, inRange = 0, high = 0;
             foreach (var r in window)
             {
-                if (r.Value <= Settings.AlertLowThresholdMgdL)
+                if (r.Value < Settings.AlertLowThresholdMgdL)
                     low++;
-                else if (r.Value < Settings.AlertHighThresholdMgdL)
-                    inRange++;
-                else
+                else if (r.Value > Settings.AlertHighThresholdMgdL)
                     high++;
+                else
+                    inRange++;
             }
 
             return new TiRStats
@@ -226,6 +228,7 @@ public class GlucoseMonitor : IDisposable
     public async Task StartAsync(string username, string password, DexcomRegion region)
     {
         _username = username;
+        _consecutiveStalePolls = 0;
         Settings.Region = region;
         Settings.DexcomUsername = username;
 
@@ -251,6 +254,7 @@ public class GlucoseMonitor : IDisposable
         _service?.ClearSession();
         _service = null;
         _username = null;
+        _consecutiveStalePolls = 0;
 
         PostToUi(() =>
         {
@@ -305,8 +309,9 @@ public class GlucoseMonitor : IDisposable
         var nextExpected = CurrentReading.Date + Settings.RefreshInterval;
         var dueTime = nextExpected - DateTime.UtcNow;
 
-        if (dueTime < TimeSpan.Zero)
-            dueTime = TimeSpan.Zero;
+        var floor = TimeSpan.FromSeconds(Math.Min(30 * Math.Pow(2, _consecutiveStalePolls), 300));
+        if (dueTime < floor)
+            dueTime = floor;
 
         ScheduleTimer(dueTime);
     }
@@ -399,13 +404,19 @@ public class GlucoseMonitor : IDisposable
                 return;
             }
 
-            MergeReadings(fetched);
-            SaveReadingsToDisk();
+            var merged = MergeReadings(fetched);
+            SaveReadingsToDisk(merged);
 
-            var latest = RecentReadings.Count > 0 ? RecentReadings[0] : null;
+            var latest = merged.Count > 0 ? merged[0] : null;
+
+            if (latest is not null && CurrentReading is not null && latest.Date == CurrentReading.Date)
+                _consecutiveStalePolls++;
+            else
+                _consecutiveStalePolls = 0;
 
             PostToUi(() =>
             {
+                RecentReadings = merged;
                 CurrentReading = latest;
                 State = new MonitorState.Connected();
                 LastUpdated = DateTime.UtcNow;
@@ -457,18 +468,19 @@ public class GlucoseMonitor : IDisposable
     // Reading merge
     // -------------------------------------------------------------------------
 
-    private void MergeReadings(IEnumerable<GlucoseReading> incoming)
+    private List<GlucoseReading> MergeReadings(IEnumerable<GlucoseReading> incoming)
     {
-        var existing = new HashSet<DateTime>(RecentReadings.Select(r => r.Date));
+        var merged = new List<GlucoseReading>(RecentReadings);
+        var existing = new HashSet<DateTime>(merged.Select(r => r.Date));
 
         foreach (var r in incoming)
         {
             if (existing.Add(r.Date))
-                RecentReadings.Add(r);
+                merged.Add(r);
         }
 
         // Sort newest first and cap
-        RecentReadings = RecentReadings
+        return merged
             .OrderByDescending(r => r.Date)
             .Take(MaxReadings)
             .ToList();
@@ -481,25 +493,25 @@ public class GlucoseMonitor : IDisposable
     private void EvaluateAlerts(GlucoseReading reading)
     {
         // Level alerts — mutually exclusive, checked in priority order
-        if (reading.Value <= Settings.AlertUrgentLowThresholdMgdL && Settings.AlertUrgentLowEnabled)
+        if (reading.Value < Settings.AlertUrgentLowThresholdMgdL && Settings.AlertUrgentLowEnabled)
         {
             TryFireAlert("UrgentLow",
                 "Urgent Low Alert",
                 $"Glucose is {reading.DisplayValue(Settings.Unit)} {reading.Trend.Arrow()} (Urgent Low)");
         }
-        else if (reading.Value <= Settings.AlertLowThresholdMgdL && Settings.AlertLowEnabled)
+        else if (reading.Value < Settings.AlertLowThresholdMgdL && Settings.AlertLowEnabled)
         {
             TryFireAlert("Low",
                 "Low Alert",
                 $"Glucose is {reading.DisplayValue(Settings.Unit)} {reading.Trend.Arrow()} (Low)");
         }
-        else if (reading.Value >= Settings.AlertUrgentHighThresholdMgdL && Settings.AlertUrgentHighEnabled)
+        else if (reading.Value > Settings.AlertUrgentHighThresholdMgdL && Settings.AlertUrgentHighEnabled)
         {
             TryFireAlert("UrgentHigh",
                 "Urgent High Alert",
                 $"Glucose is {reading.DisplayValue(Settings.Unit)} {reading.Trend.Arrow()} (Urgent High)");
         }
-        else if (reading.Value >= Settings.AlertHighThresholdMgdL && Settings.AlertHighEnabled)
+        else if (reading.Value > Settings.AlertHighThresholdMgdL && Settings.AlertHighEnabled)
         {
             TryFireAlert("High",
                 "High Alert",
@@ -581,14 +593,14 @@ public class GlucoseMonitor : IDisposable
         }
     }
 
-    private void SaveReadingsToDisk()
+    private void SaveReadingsToDisk(List<GlucoseReading> readings)
     {
         try
         {
             var dir = Path.GetDirectoryName(ReadingsPath)!;
             Directory.CreateDirectory(dir);
 
-            var persisted = RecentReadings.Select(r => new PersistedReading
+            var persisted = readings.Select(r => new PersistedReading
             {
                 Id = r.Id,
                 Value = r.Value,

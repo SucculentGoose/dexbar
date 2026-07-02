@@ -192,7 +192,7 @@ final class GlucoseMonitorLinux {
     }
 
     var readingColor: String {
-        guard coloredTrayIcon else { return "#FFFFFF" }
+        guard coloredTrayIcon else { return "#8E8E93" }
         guard let reading = currentReading else { return colorInRange }
         let v = Double(reading.value)
         if v < alertUrgentLowThresholdMgdL  { return colorUrgentLow  }
@@ -209,6 +209,7 @@ final class GlucoseMonitorLinux {
     private var timer: Timer?
     var nextRefreshDate: Date?
     private var isStarting = false
+    private var consecutiveStalePolls = 0
 
     private static let readingsURL: URL? = {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -230,6 +231,7 @@ final class GlucoseMonitorLinux {
         defer { isStarting = false }
         service = DexcomService(region: region)
         state = .loading
+        consecutiveStalePolls = 0
         onUpdate?()
         do {
             try await service?.authenticate(username: username, password: password)
@@ -247,6 +249,7 @@ final class GlucoseMonitorLinux {
         nextRefreshDate = nil
         service = nil
         state = .idle
+        consecutiveStalePolls = 0
         onUpdate?()
     }
 
@@ -279,7 +282,8 @@ final class GlucoseMonitorLinux {
         let fireDate: Date
         if let last = lastReadingDate {
             let candidate = last.addingTimeInterval(refreshInterval)
-            fireDate = max(candidate, Date().addingTimeInterval(30))
+            let floor = min(30 * pow(2, Double(consecutiveStalePolls)), 300)
+            fireDate = max(candidate, Date().addingTimeInterval(floor))
         } else {
             fireDate = Date().addingTimeInterval(refreshInterval)
         }
@@ -307,6 +311,11 @@ final class GlucoseMonitorLinux {
         do {
             let newReadings = try await service.getLatestReadings(maxCount: maxCount)
             let reading = newReadings[0]
+            if reading.date == currentReading?.date {
+                consecutiveStalePolls += 1
+            } else {
+                consecutiveStalePolls = 0
+            }
             currentReading = reading
             let existingDates = Set(recentReadings.map { $0.date })
             let toAdd = newReadings.filter { !existingDates.contains($0.date) }
@@ -427,8 +436,11 @@ final class GlucoseMonitorLinux {
 
     private func saveReadings() {
         guard let url = Self.readingsURL else { return }
-        let data = try? JSONEncoder().encode(recentReadings)
-        try? data?.write(to: url, options: .atomic)
+        let readings = recentReadings
+        Task.detached(priority: .utility) {
+            let data = try? JSONEncoder().encode(readings)
+            try? data?.write(to: url, options: .atomic)
+        }
     }
 
     private func loadPersistedReadings() {

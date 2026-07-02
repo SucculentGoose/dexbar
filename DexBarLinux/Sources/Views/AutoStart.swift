@@ -23,7 +23,7 @@ enum AutoStart {
             Type=Application
             Name=DexBar
             Comment=Dexcom glucose readings in your system tray
-            Exec=\(execPath)
+            Exec="\(execPath)"
             Icon=dialog-information
             Hidden=false
             X-GNOME-Autostart-enabled=true

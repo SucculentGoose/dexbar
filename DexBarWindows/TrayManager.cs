@@ -43,7 +43,11 @@ public class TrayManager : IDisposable
         _monitor.OnAlert  = HandleAlert;
 
         _refreshItem = new ToolStripMenuItem("Refresh Now");
-        _refreshItem.Click += async (_, _) => await _monitor.RefreshNowAsync();
+        _refreshItem.Click += async (_, _) =>
+        {
+            try { await _monitor.RefreshNowAsync(); }
+            catch { /* monitor surfaces errors via state */ }
+        };
 
         var settingsItem = new ToolStripMenuItem("Settings…");
         settingsItem.Click += (_, _) => OpenSettings();
@@ -92,13 +96,46 @@ public class TrayManager : IDisposable
 
             if (password is not null)
             {
-                _ = _monitor.StartAsync(settings.DexcomUsername, password, settings.Region);
+                _ = AutoStartWithRetryAsync(settings.DexcomUsername, password, settings.Region);
                 return;
             }
         }
 
         // First run — show settings so user can enter credentials
         OpenSettings();
+    }
+
+    private static readonly int[] AutoStartRetryDelaysMs = { 30_000, 60_000, 120_000, 300_000 };
+
+    private async Task AutoStartWithRetryAsync(string username, string password, DexcomRegion region)
+    {
+        try
+        {
+            var attempt = 0;
+            while (true)
+            {
+                try
+                {
+                    await _monitor.StartAsync(username, password, region);
+                    return;
+                }
+                catch (DexcomException ex) when (ex.ErrorType == DexcomErrorType.InvalidCredentials)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(OpenSettings);
+                    return;
+                }
+                catch
+                {
+                    var delay = AutoStartRetryDelaysMs[Math.Min(attempt, AutoStartRetryDelaysMs.Length - 1)];
+                    attempt++;
+                    await Task.Delay(delay);
+                }
+            }
+        }
+        catch
+        {
+            // Never let this fire-and-forget loop surface as an unobserved task exception.
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -190,9 +227,9 @@ public class TrayManager : IDisposable
             _popup.OpenSettingsRequested += OpenSettings;
         }
 
-        PositionPopup();
         _popup.SuppressDeactivateOnce();
         _popup.Show();
+        PositionPopup();
         _popup.Activate();
     }
 
@@ -205,17 +242,17 @@ public class TrayManager : IDisposable
         var screen   = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position);
         var workArea = screen.WorkingArea;
 
-        // Approximate DPI scale from primary screen DPI
-        double dpi   = screen.Bounds.Width > 0
-            ? System.Windows.SystemParameters.PrimaryScreenWidth / screen.Bounds.Width
-            : 1.0;
-        if (dpi <= 0) dpi = 1.0;
+        // True per-monitor DPI scale for the popup's actual monitor.
+        double scale;
+        try { scale = System.Windows.Media.VisualTreeHelper.GetDpi(_popup).DpiScaleX; }
+        catch { scale = 1.0; }
+        if (scale <= 0) scale = 1.0;
 
-        double workLeft   = workArea.Left   / dpi;
-        double workRight  = workArea.Right  / dpi;
-        double workBottom = workArea.Bottom / dpi;
+        double workLeft   = workArea.Left   / scale;
+        double workRight  = workArea.Right  / scale;
+        double workBottom = workArea.Bottom / scale;
 
-        double cursorX = System.Windows.Forms.Cursor.Position.X / dpi;
+        double cursorX = System.Windows.Forms.Cursor.Position.X / scale;
 
         double x = Math.Clamp(cursorX - _popup.Width / 2, workLeft, workRight - _popup.Width);
         double y = workBottom - _popup.Height - 4;

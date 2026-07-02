@@ -59,14 +59,9 @@ public partial class AccountPage : System.Windows.Controls.Page
             return;
         }
 
-        // Save password to credential store
-        try
+        if (string.IsNullOrEmpty(password))
         {
-            CredentialStorage.SavePassword(password);
-        }
-        catch (Exception ex)
-        {
-            ShowStatus(InfoBarSeverity.Error, "Credential error", ex.Message);
+            ShowStatus(InfoBarSeverity.Error, "Password is required.", string.Empty);
             BtnConnect.IsEnabled = true;
             BtnConnect.Content = "Connect";
             return;
@@ -75,6 +70,19 @@ public partial class AccountPage : System.Windows.Controls.Page
         try
         {
             await _monitor.StartAsync(username, password, region);
+
+            try
+            {
+                CredentialStorage.SavePassword(password);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus(InfoBarSeverity.Warning, "Connected, but saving the password failed", ex.Message);
+                BtnConnect.IsEnabled = true;
+                BtnConnect.Content = "Connect";
+                return;
+            }
+
             _monitor.Settings.Save();
             ShowStatus(InfoBarSeverity.Success, "Connected", "Authenticated — fetching readings…");
         }

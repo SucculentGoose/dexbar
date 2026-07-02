@@ -221,9 +221,9 @@ struct SettingsView: View {
                     .onChange(of: alertStaleData) { _, v in monitor.alertStaleDataEnabled = v }
             }
             Section("Focus & Do Not Disturb") {
-                Toggle("Break through Focus/DND for urgent alerts", isOn: $alertCriticalEnabled)
+                Toggle("Time-sensitive urgent alerts", isOn: $alertCriticalEnabled)
                     .onChange(of: alertCriticalEnabled) { _, v in monitor.alertCriticalEnabled = v }
-                Text("Urgent High and Urgent Low alerts will override Focus mode and Do Not Disturb.")
+                Text("Marks Urgent High and Urgent Low alerts as time-sensitive so they can break through Focus and Do Not Disturb, when time-sensitive notifications are allowed in System Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -338,13 +338,19 @@ struct SettingsView: View {
         password = (try? KeychainService.load(key: "password")) ?? ""
         // Sync AppStorage values to monitor
         monitor.unit = unit
+        monitor.alertUrgentHighEnabled = alertUrgentHigh
+        monitor.alertUrgentHighThresholdMgdL = urgentHighMgdL
         monitor.alertHighEnabled = alertHighEnabled
         monitor.alertHighThresholdMgdL = alertHighMgdL
         monitor.alertLowEnabled = alertLowEnabled
         monitor.alertLowThresholdMgdL = alertLowMgdL
+        monitor.alertUrgentLowEnabled = alertUrgentLow
+        monitor.alertUrgentLowThresholdMgdL = urgentLowMgdL
         monitor.alertRisingFastEnabled = alertRisingFast
         monitor.alertDroppingFastEnabled = alertDroppingFast
+        monitor.alertStaleDataEnabled = alertStaleData
         monitor.alertCriticalEnabled = alertCriticalEnabled
+        monitor.updateRefreshInterval(refreshMinutes * 60)
     }
 
     private func connect() async {

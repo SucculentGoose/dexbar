@@ -48,6 +48,22 @@ Item {
         function displayUnit(useMmol) {
             return useMmol ? "mmol/L" : "mg/dL"
         }
+        function mergeReadings(history, incoming, cap) {
+            const seen = {}
+            for (let i = 0; i < history.length; i++) {
+                seen[history[i].timestampMs] = true
+            }
+            const merged = history.slice()
+            for (let i = 0; i < incoming.length; i++) {
+                const r = incoming[i]
+                if (!seen[r.timestampMs]) {
+                    seen[r.timestampMs] = true
+                    merged.push(r)
+                }
+            }
+            merged.sort(function(a, b) { return b.timestampMs - a.timestampMs })
+            return merged.slice(0, cap)
+        }
     }
 
     TestCase {
@@ -118,6 +134,45 @@ Item {
         function test_unit() {
             compare(root.dexcom.displayUnit(false), "mg/dL")
             compare(root.dexcom.displayUnit(true),  "mmol/L")
+        }
+    }
+
+    TestCase {
+        name: "MergeReadings"
+        function test_dedupesByTimestamp() {
+            const history = [{ value: 100, timestampMs: 2000 }, { value: 90, timestampMs: 1000 }]
+            const incoming = [{ value: 999, timestampMs: 2000 }, { value: 110, timestampMs: 3000 }]
+            const merged = root.dexcom.mergeReadings(history, incoming, 10)
+            compare(merged.length, 3)
+            compare(merged[0].timestampMs, 3000)
+            compare(merged[1].timestampMs, 2000)
+            compare(merged[1].value, 100)
+            compare(merged[2].timestampMs, 1000)
+        }
+        function test_sortsNewestFirst() {
+            const history = [{ value: 90, timestampMs: 1000 }]
+            const incoming = [{ value: 110, timestampMs: 3000 }, { value: 105, timestampMs: 2000 }]
+            const merged = root.dexcom.mergeReadings(history, incoming, 10)
+            compare(merged[0].timestampMs, 3000)
+            compare(merged[1].timestampMs, 2000)
+            compare(merged[2].timestampMs, 1000)
+        }
+        function test_respectsCap() {
+            const history = [{ value: 100, timestampMs: 3000 }, { value: 95, timestampMs: 2000 }]
+            const incoming = [{ value: 90, timestampMs: 1000 }]
+            const merged = root.dexcom.mergeReadings(history, incoming, 2)
+            compare(merged.length, 2)
+            compare(merged[0].timestampMs, 3000)
+            compare(merged[1].timestampMs, 2000)
+        }
+        function test_doesNotMutateInputs() {
+            const history = [{ value: 100, timestampMs: 2000 }]
+            const incoming = [{ value: 110, timestampMs: 3000 }]
+            root.dexcom.mergeReadings(history, incoming, 10)
+            compare(history.length, 1)
+            compare(incoming.length, 1)
+            compare(history[0].timestampMs, 2000)
+            compare(incoming[0].timestampMs, 3000)
         }
     }
 }
