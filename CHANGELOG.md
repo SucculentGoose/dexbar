@@ -5,6 +5,44 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-07-01
+
+Cross-platform bug-fix release from a full audit of the macOS, Linux, Windows, and KDE code.
+
+### Fixed (macOS)
+- Settings (unit, refresh interval, alert thresholds and toggles) are now loaded at launch — previously they silently reverted to defaults after every restart until the Settings window was opened
+- A failed re-authentication no longer permanently stops auto-refresh; it now retries with delays and always reschedules the next poll
+- Transient network errors during connect now retry automatically instead of requiring a manual reconnect
+- Notification cooldowns are only recorded when the notification is actually delivered
+- "Break through Focus/DND" setting relabeled to accurately describe time-sensitive notification behavior
+
+### Fixed (Windows)
+- Fixed continuous zero-delay polling of the Dexcom API whenever readings were stale (sensor warmup/gaps) — now backs off 30s → 300s like the other platforms
+- Startup authentication failure (e.g. launch at login before Wi-Fi connects) no longer shows a "Fatal Error" dialog; it now retries in the background with escalating delays and opens Settings only for invalid credentials
+- Fixed a cross-thread race where the UI could observe the readings list mid-merge
+- Authentication now rejects empty/all-zero account and session IDs
+- Password is only saved to Credential Manager after authentication succeeds (a typo'd password no longer overwrites a working one)
+- Popup positioning now uses true per-monitor DPI (fixes wrong placement on mixed-DPI multi-monitor setups)
+- Threshold boundary values (e.g. exactly 70 or 180 mg/dL) now classify as in-range, matching macOS and Linux
+
+### Fixed (Linux)
+- "Install Update" no longer accumulates duplicate click handlers across daily update checks (one click could trigger multiple installs)
+- Overlay click-to-dismiss now actually works
+- Reduced idle CPU usage (RunLoop bridge timer 10 ms → 50 ms)
+- SIGTERM/SIGINT handlers are now async-signal-safe
+- Updater now parses appcast items individually and picks the highest version instead of relying on file order
+- Autostart .desktop Exec path is quoted (fixes paths containing spaces)
+- Monochrome tray icon fallback color is now legible on light panels
+
+### Fixed (KDE Plasma)
+- Polls now fetch only new readings and merge into local history instead of re-downloading up to 90 days of data every 5 minutes
+- A failed login or session refresh now schedules a retry instead of silently stopping polling (credential errors excluded, to avoid account lockout)
+
+### Changed (all platforms)
+- Dexcom HTTP 500 responses are now classified via the response body: expired sessions and wrong credentials are distinguished from transient server faults, which are retried instead of being reported as "invalid credentials"
+- Polling backs off exponentially (30s → 300s) while no new readings arrive, instead of retrying every 30 seconds
+- Reading history is persisted off the UI thread
+
 ## [1.8.0] - 2026-04-02
 
 ### Added (KDE Plasma)

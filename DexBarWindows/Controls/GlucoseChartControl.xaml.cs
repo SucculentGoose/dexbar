@@ -371,11 +371,11 @@ public partial class GlucoseChartControl : UserControl
 
     private static Color GlucoseColor(int mgdL, AppSettings s)
     {
-        if (mgdL <= s.AlertUrgentLowThresholdMgdL) return ParseColor(s.ColorUrgentLow);
-        if (mgdL <= s.AlertLowThresholdMgdL)       return ParseColor(s.ColorLow);
-        if (mgdL < s.AlertHighThresholdMgdL)        return ParseColor(s.ColorInRange);
-        if (mgdL < s.AlertUrgentHighThresholdMgdL)  return ParseColor(s.ColorHigh);
-        return ParseColor(s.ColorUrgentHigh);
+        if (mgdL < s.AlertUrgentLowThresholdMgdL) return ParseColor(s.ColorUrgentLow);
+        if (mgdL < s.AlertLowThresholdMgdL) return ParseColor(s.ColorLow);
+        if (mgdL > s.AlertUrgentHighThresholdMgdL) return ParseColor(s.ColorUrgentHigh);
+        if (mgdL > s.AlertHighThresholdMgdL) return ParseColor(s.ColorHigh);
+        return ParseColor(s.ColorInRange);
     }
 
     private static Color ParseColor(string hex)

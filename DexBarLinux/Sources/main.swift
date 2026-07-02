@@ -22,6 +22,7 @@ notify_init("DexBar")
 // MARK: - GLib main loop (replaces gtk_main in GTK4)
 
 let mainLoop = g_main_loop_new(nil, 0)!
+nonisolated(unsafe) var terminationRequested: sig_atomic_t = 0
 
 // MARK: - Application components
 // We know we're on the main thread (GLib single-threaded loop), so it's
@@ -56,6 +57,7 @@ MainActor.assumeIsolated {
         let body = "Version \(version) is available. Click 'Install Update' in the tray menu."
         let n = notify_notification_new("DexBar Update Available", body, "software-update-available")
         notify_notification_show(n, nil)
+        g_object_unref(n)
 #endif
     }
     updater.onStatusChange = { text in
@@ -74,19 +76,24 @@ MainActor.assumeIsolated {
 
     // MARK: - SIGTERM / SIGINT handler
 
-    signal(SIGTERM) { _ in UserDefaults.standard.synchronize(); g_main_loop_quit(mainLoop) }
-    signal(SIGINT)  { _ in UserDefaults.standard.synchronize(); g_main_loop_quit(mainLoop) }
+    signal(SIGTERM) { _ in terminationRequested = 1 }
+    signal(SIGINT)  { _ in terminationRequested = 1 }
 
     // MARK: - Run main loop
 
     // g_main_loop_run() drives GLib's event loop but doesn't drain Swift's RunLoop.main,
     // which is needed by Task { @MainActor in ... } and Foundation.Timer.
-    // This 10 ms GLib timer bridges the two, so async tasks actually execute.
+    // This 50 ms GLib timer bridges the two, so async tasks actually execute.
     let drainRunLoop: @convention(c) (gpointer?) -> gboolean = { _ in
+        if terminationRequested != 0 {
+            UserDefaults.standard.synchronize()
+            g_main_loop_quit(mainLoop)
+            return 0  // G_SOURCE_REMOVE
+        }
         RunLoop.main.run(until: Date())
         return 1  // G_SOURCE_CONTINUE
     }
-    g_timeout_add(10, drainRunLoop, nil)
+    g_timeout_add(50, drainRunLoop, nil)
 
     // Flush UserDefaults to disk every 5 seconds — swift-foundation on Linux does not
     // auto-sync on every set(), so without this the plist is never written.

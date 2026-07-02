@@ -136,11 +136,26 @@ public actor DexcomService {
         }
     }
 
+    private struct DexcomErrorBody: Decodable {
+        let Code: String?
+        let Message: String?
+    }
+
     private func validateResponse(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { return }
         if http.statusCode == 500 {
-            // Dexcom returns 500 for bad credentials
-            throw DexcomError.invalidCredentials
+            // Dexcom returns 500 for both bad credentials and transient server faults;
+            // the body's Code field distinguishes them.
+            if let body = try? JSONDecoder().decode(DexcomErrorBody.self, from: data),
+               let code = body.Code {
+                if code == "SessionIdNotFound" || code == "SessionNotValid" {
+                    throw DexcomError.sessionExpired
+                }
+                if code.contains("Password") || code.contains("AccountNotFound") {
+                    throw DexcomError.invalidCredentials
+                }
+            }
+            throw DexcomError.serverError(500)
         }
         guard (200..<300).contains(http.statusCode) else {
             throw DexcomError.serverError(http.statusCode)

@@ -57,21 +57,21 @@ final class GlucoseMonitor {
     }
 
     // Settings (persisted via AppStorage in SettingsView; mirrored here)
-    var unit: GlucoseUnit = .mgdL
-    var refreshInterval: TimeInterval = 5 * 60
+    var unit: GlucoseUnit = GlucoseUnit(rawValue: UserDefaults.standard.string(forKey: "glucoseUnit") ?? "") ?? .mgdL
+    var refreshInterval: TimeInterval = (UserDefaults.standard.object(forKey: "refreshIntervalMinutes") as? Double ?? 5.0) * 60
 
     // Alert settings
-    var alertUrgentHighEnabled: Bool = true
-    var alertUrgentHighThresholdMgdL: Double = 250
-    var alertHighEnabled: Bool = true
-    var alertHighThresholdMgdL: Double = 180
-    var alertLowEnabled: Bool = true
-    var alertLowThresholdMgdL: Double = 70
-    var alertUrgentLowEnabled: Bool = true
-    var alertUrgentLowThresholdMgdL: Double = 55
-    var alertRisingFastEnabled: Bool = true
-    var alertDroppingFastEnabled: Bool = true
-    var alertStaleDataEnabled: Bool = true
+    var alertUrgentHighEnabled: Bool = UserDefaults.standard.object(forKey: "alertUrgentHighEnabled") as? Bool ?? true
+    var alertUrgentHighThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertUrgentHighMgdL") as? Double ?? 250
+    var alertHighEnabled: Bool = UserDefaults.standard.object(forKey: "alertHighEnabled") as? Bool ?? true
+    var alertHighThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertHighMgdL") as? Double ?? 180
+    var alertLowEnabled: Bool = UserDefaults.standard.object(forKey: "alertLowEnabled") as? Bool ?? true
+    var alertLowThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertLowMgdL") as? Double ?? 70
+    var alertUrgentLowEnabled: Bool = UserDefaults.standard.object(forKey: "alertUrgentLowEnabled") as? Bool ?? true
+    var alertUrgentLowThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertUrgentLowMgdL") as? Double ?? 55
+    var alertRisingFastEnabled: Bool = UserDefaults.standard.object(forKey: "alertRisingFastEnabled") as? Bool ?? true
+    var alertDroppingFastEnabled: Bool = UserDefaults.standard.object(forKey: "alertDroppingFastEnabled") as? Bool ?? true
+    var alertStaleDataEnabled: Bool = UserDefaults.standard.object(forKey: "alertStaleDataEnabled") as? Bool ?? true
     var alertCriticalEnabled: Bool = UserDefaults.standard.object(forKey: "alertCriticalEnabled") as? Bool ?? false {
         didSet { UserDefaults.standard.set(alertCriticalEnabled, forKey: "alertCriticalEnabled") }
     }
@@ -138,6 +138,7 @@ final class GlucoseMonitor {
     private var timer: Timer?
     var nextRefreshDate: Date?
     private var isStarting = false
+    private var consecutiveStalePolls = 0
 
     private static let readingsURL: URL? = {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
@@ -146,10 +147,13 @@ final class GlucoseMonitor {
 
     private func saveReadings() {
         guard let url = Self.readingsURL else { return }
-        let dir = url.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let data = try? JSONEncoder().encode(recentReadings)
-        try? data?.write(to: url, options: .atomic)
+        let readings = recentReadings
+        Task.detached(priority: .utility) {
+            let dir = url.deletingLastPathComponent()
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try? JSONEncoder().encode(readings)
+            try? data?.write(to: url, options: .atomic)
+        }
     }
 
     private func loadPersistedReadings() {
@@ -190,12 +194,18 @@ final class GlucoseMonitor {
         guard !isStarting else { return }
         isStarting = true
         defer { isStarting = false }
+        consecutiveStalePolls = 0
         service = DexcomService(region: region)
         state = .loading
         do {
             try await service?.authenticate(username: username, password: password)
         } catch {
             state = .error(error.localizedDescription)
+            if case DexcomError.invalidCredentials = error {
+                // Invalid credentials should not auto-retry
+            } else {
+                scheduleTimer()
+            }
             return
         }
         await refresh(initialLoad: true)
@@ -208,6 +218,7 @@ final class GlucoseMonitor {
         nextRefreshDate = nil
         service = nil
         state = .idle
+        consecutiveStalePolls = 0
     }
 
     func refreshNow() async {
@@ -228,10 +239,11 @@ final class GlucoseMonitor {
     /// If that time is already past (or no reading yet), waits at least 30 s to avoid hammering the API.
     private func scheduleTimer(after lastReadingDate: Date? = nil) {
         timer?.invalidate()
+        let floor = min(30 * pow(2, Double(consecutiveStalePolls)), 300)
         let fireDate: Date
         if let last = lastReadingDate {
             let candidate = last.addingTimeInterval(refreshInterval)
-            fireDate = max(candidate, Date().addingTimeInterval(30))
+            fireDate = max(candidate, Date().addingTimeInterval(floor))
         } else {
             fireDate = Date().addingTimeInterval(refreshInterval)
         }
@@ -252,6 +264,11 @@ final class GlucoseMonitor {
         do {
             let newReadings = try await service.getLatestReadings(maxCount: maxCount)
             let reading = newReadings[0]
+            if reading.date == currentReading?.date {
+                consecutiveStalePolls += 1
+            } else {
+                consecutiveStalePolls = 0
+            }
             currentReading = reading
             // Merge new readings into history deduplicating by date, cap at 288
             let existingDates = Set(recentReadings.map { $0.date })
@@ -297,7 +314,30 @@ final class GlucoseMonitor {
             return
         }
         let region = DexcomRegion(rawValue: regionRaw) ?? .us
-        await start(username: username, password: password, region: region)
+        // Retry up to 3 times with increasing delays — the network may still be
+        // reconnecting after a sleep/wake cycle when this is called.
+        let delays: [UInt64] = [3_000_000_000, 5_000_000_000, 10_000_000_000]
+        for (attempt, delay) in delays.enumerated() {
+            try? await Task.sleep(nanoseconds: delay)
+            do {
+                service = DexcomService(region: region)
+                state = .loading
+                try await service?.authenticate(username: username, password: password)
+                await refresh(initialLoad: false)
+                return
+            } catch DexcomError.invalidCredentials, DexcomError.sessionExpired {
+                if attempt < delays.count - 1 {
+                    // Still failing — try again after next delay
+                    continue
+                }
+                state = .error("Session expired — reconnect in Settings")
+                scheduleTimer()
+            } catch {
+                state = .error(error.localizedDescription)
+                scheduleTimer(after: currentReading?.date)
+                return
+            }
+        }
     }
 
     private func evaluateStaleAlert(reading: GlucoseReading) async {

@@ -221,4 +221,20 @@ private let gtkCloseRequestTrampoline: @convention(c) (OpaquePointer?, gpointer?
     Unmanaged<GtkCallback>.fromOpaque(ptr).takeUnretainedValue().action()
     return 1
 }
+
+/// Connects the "released" signal on a GtkGestureClick controller.
+func gtkConnectClickReleased(_ controller: OpaquePointer?, _ action: @escaping () -> Void) {
+    let cb = GtkCallback(action)
+    let raw: gpointer? = controller.map { UnsafeMutableRawPointer($0) }
+    g_signal_connect_data(
+        raw, "released",
+        unsafeBitCast(gtkClickReleasedTrampoline, to: GCallback.self),
+        cb.retained(), nil, GConnectFlags(rawValue: 0)
+    )
+}
+
+private let gtkClickReleasedTrampoline: @convention(c) (OpaquePointer?, gint, Double, Double, gpointer?) -> Void = { _, _, _, _, userData in
+    guard let ptr = userData else { return }
+    Unmanaged<GtkCallback>.fromOpaque(ptr).takeUnretainedValue().action()
+}
 #endif

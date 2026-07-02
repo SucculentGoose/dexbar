@@ -34,6 +34,7 @@ public class DexcomService
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly Regex _wtRegex = new(@"\d+", RegexOptions.Compiled);
     private const string AppId = "d8665ade-9673-4e27-9ff6-92db4ce13d13";
+    private const string EmptyGuid = "00000000-0000-0000-0000-000000000000";
 
     // Note: _sessionId is not thread-safe. The monitor ensures only one poll runs at a time.
     private string? _sessionId;
@@ -81,6 +82,8 @@ public class DexcomService
                 authBody);
 
             accountId = StripQuotes(authResponse);
+            if (string.IsNullOrEmpty(accountId) || accountId == EmptyGuid)
+                throw new DexcomException(DexcomErrorType.InvalidCredentials, "Invalid Dexcom credentials.");
         }
         catch (DexcomException)
         {
@@ -106,7 +109,11 @@ public class DexcomService
                 $"{baseUrl}/General/LoginPublisherAccountById",
                 loginBody);
 
-            _sessionId = StripQuotes(loginResponse);
+            var sessionId = StripQuotes(loginResponse);
+            if (string.IsNullOrEmpty(sessionId) || sessionId == EmptyGuid)
+                throw new DexcomException(DexcomErrorType.InvalidCredentials, "Invalid Dexcom credentials.");
+
+            _sessionId = sessionId;
         }
         catch (DexcomException)
         {
@@ -144,9 +151,11 @@ public class DexcomService
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
         {
-            _sessionId = null;
-            throw new DexcomException(DexcomErrorType.InvalidCredentials,
-                "Invalid credentials or session expired (HTTP 500).");
+            var errorBody = await response.Content.ReadAsStringAsync();
+            var mapped = MapServerError(errorBody);
+            if (mapped.ErrorType is DexcomErrorType.SessionExpired or DexcomErrorType.InvalidCredentials)
+                _sessionId = null;
+            throw mapped;
         }
 
         response.EnsureSuccessStatusCode();
@@ -191,12 +200,44 @@ public class DexcomService
         }
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
-            throw new DexcomException(DexcomErrorType.InvalidCredentials,
-                "Invalid credentials (HTTP 500).");
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw MapServerError(errorBody);
+        }
 
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadAsStringAsync();
+    }
+
+    /// <summary>
+    /// Maps a Dexcom HTTP 500 error body to the appropriate exception type.
+    /// SessionIdNotFound/SessionNotValid means the session expired; a Code
+    /// mentioning Password or AccountNotFound means the credentials are wrong;
+    /// anything else (including an unparseable body) is treated as a transient,
+    /// retryable server fault.
+    /// </summary>
+    private static DexcomException MapServerError(string body)
+    {
+        string? code = null;
+        try
+        {
+            code = JsonSerializer.Deserialize<DexcomErrorBody>(body, _jsonOptions)?.Code;
+        }
+        catch
+        {
+            // Unparseable body — fall through to the transient/unknown mapping below.
+        }
+
+        if (code is "SessionIdNotFound" or "SessionNotValid")
+            return new DexcomException(DexcomErrorType.SessionExpired, "Dexcom session expired.");
+
+        if (code is not null &&
+            (code.Contains("Password", StringComparison.OrdinalIgnoreCase) ||
+             code.Contains("AccountNotFound", StringComparison.OrdinalIgnoreCase)))
+            return new DexcomException(DexcomErrorType.InvalidCredentials, "Invalid Dexcom credentials.");
+
+        return new DexcomException(DexcomErrorType.Unknown, "Dexcom server error (HTTP 500).");
     }
 
     /// <summary>Strips surrounding double-quotes from a Dexcom UUID response.</summary>
@@ -235,6 +276,8 @@ public class DexcomService
     // -------------------------------------------------------------------------
     // Internal DTO for JSON deserialization
     // -------------------------------------------------------------------------
+
+    private sealed record DexcomErrorBody(string? Code, string? Message);
 
     private sealed class DexcomRawReading
     {

@@ -28,7 +28,7 @@ public partial class App : Application
             ShowFatalError(ex.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, ex) =>
         {
-            ShowFatalError(ex.Exception);
+            LogException(ex.Exception);
             ex.SetObserved();
         };
 
@@ -68,11 +68,17 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private static void ShowFatalError(Exception? ex)
+    private static void LogException(Exception? ex)
     {
         var msg = ex?.ToString() ?? "Unknown error";
         var log = Path.Combine(AppContext.BaseDirectory, "dexbar-crash.log");
         try { File.WriteAllText(log, $"{DateTime.Now}\n{msg}\n"); } catch { }
+    }
+
+    private static void ShowFatalError(Exception? ex)
+    {
+        LogException(ex);
+        var msg = ex?.ToString() ?? "Unknown error";
         // Use native Win32 MessageBox — works even if WPF is in a bad state
         MessageBoxW(IntPtr.Zero, msg, "DexBar – Fatal Error", 0x10 /* MB_ICONERROR */);
     }

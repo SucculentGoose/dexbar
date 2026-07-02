@@ -22,7 +22,6 @@ actor NotificationManager {
         if let last = lastNotified[type], now.timeIntervalSince(last) < cooldown {
             return // still in cooldown
         }
-        lastNotified[type] = now
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -37,7 +36,10 @@ actor NotificationManager {
             content: content,
             trigger: nil
         )
-        try? await UNUserNotificationCenter.current().add(request)
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            lastNotified[type] = now
+        } catch {}
     }
 
     func resetCooldowns() {

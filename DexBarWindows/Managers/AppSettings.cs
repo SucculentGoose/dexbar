@@ -129,10 +129,10 @@ public class AppSettings
     /// </summary>
     public string GlucoseColor(int valueMgdL)
     {
-        if (valueMgdL <= AlertUrgentLowThresholdMgdL) return ColorUrgentLow;
-        if (valueMgdL <= AlertLowThresholdMgdL)       return ColorLow;
-        if (valueMgdL <  AlertHighThresholdMgdL)      return ColorInRange;
-        if (valueMgdL <  AlertUrgentHighThresholdMgdL) return ColorHigh;
-        return ColorUrgentHigh;
+        if (valueMgdL < AlertUrgentLowThresholdMgdL) return ColorUrgentLow;
+        if (valueMgdL < AlertLowThresholdMgdL) return ColorLow;
+        if (valueMgdL > AlertUrgentHighThresholdMgdL) return ColorUrgentHigh;
+        if (valueMgdL > AlertHighThresholdMgdL) return ColorHigh;
+        return ColorInRange;
     }
 }

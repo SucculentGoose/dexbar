@@ -137,6 +137,10 @@ final class StatusOverlay {
         // Click anywhere to dismiss — use GtkGestureClick event controller
         let clickCtrl = gtk_gesture_click_new()
         gtk_widget_add_controller(win, clickCtrl)
+        gtkConnectClickReleased(clickCtrl) { [weak self] in
+            self?.isVisible = false
+            if let w = self?.window { gtk_widget_set_visible(w, 0) }
+        }
 
         gtkConnectDeleteHide(win) { [weak self] in
             self?.isVisible = false

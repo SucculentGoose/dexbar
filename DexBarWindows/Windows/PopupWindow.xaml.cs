@@ -52,7 +52,12 @@ public partial class PopupWindow : Window
         InitializeComponent();
 
         // Wire up action labels (MouseLeftButtonDown + Handled to prevent DragMove)
-        RefreshButton.MouseLeftButtonDown  += async (_, e) => { e.Handled = true; await _monitor.RefreshNowAsync(); };
+        RefreshButton.MouseLeftButtonDown  += async (_, e) =>
+        {
+            e.Handled = true;
+            try { await _monitor.RefreshNowAsync(); }
+            catch { /* monitor surfaces errors via state */ }
+        };
         SettingsButton.MouseLeftButtonDown += (_, e) => { e.Handled = true; Hide(); OpenSettingsRequested?.Invoke(); };
         QuitButton.MouseLeftButtonDown     += (_, e) => { e.Handled = true; Application.Current.Shutdown(); };
 

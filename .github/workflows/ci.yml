@@ -22,6 +22,43 @@ jobs:
       - name: Build
         run: dotnet build DexBarWindows/DexBarWindows.csproj -c Debug
 
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Install GTK dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libdbusmenu-glib-dev \
+            libsecret-1-dev \
+            libnotify-dev \
+            meson \
+            ninja-build \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone --depth 1 https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build -Dexamples=false -Ddocs=false -Dtests=false
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
+
+      - name: Build Linux binary
+        run: swift build --product DexBarLinux
+
   test:
     name: Run Tests
     runs-on: macos-15

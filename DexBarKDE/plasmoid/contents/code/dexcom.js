@@ -69,6 +69,25 @@ function isStale(timestampMs) {
     return minutesAgo(timestampMs) > 15
 }
 
+// Merge incoming readings into history (both newest-first), dedupe by timestampMs,
+// sort newest-first, and cap the result length. Never mutates its inputs.
+function mergeReadings(history, incoming, cap) {
+    const seen = {}
+    for (let i = 0; i < history.length; i++) {
+        seen[history[i].timestampMs] = true
+    }
+    const merged = history.slice()
+    for (let i = 0; i < incoming.length; i++) {
+        const r = incoming[i]
+        if (!seen[r.timestampMs]) {
+            seen[r.timestampMs] = true
+            merged.push(r)
+        }
+    }
+    merged.sort(function(a, b) { return b.timestampMs - a.timestampMs })
+    return merged.slice(0, cap)
+}
+
 // ─── API calls (callback-based; use XMLHttpRequest internally) ─────────────
 
 // Step 1 of auth: username → accountId
