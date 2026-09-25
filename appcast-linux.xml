@@ -93,6 +93,17 @@
                 type="application/octet-stream"
             />
         </item>
+        <item>
+            <title>DexBar Linux 1.8.2</title>
+            <pubDate>Fri, 25 Sep 2026 19:54:24 +0000</pubDate>
+            <sparkle:version>1.8.2</sparkle:version>
+            <sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.8.2/dexbar-linux-x86_64-v1.8.2.tar.gz"
+                length="1531590"
+                type="application/octet-stream"
+            />
+        </item>
         <!-- Linux releases are added here automatically by the GitHub Actions release workflow -->
     </channel>
 </rss>
