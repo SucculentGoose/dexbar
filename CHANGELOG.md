@@ -5,6 +5,39 @@ All notable changes to DexBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-09-25
+
+Bug-fix release from a second cross-platform review, focused on account safety and data gaps.
+
+### Fixed (all platforms)
+- If Dexcom rejects the saved password while re-connecting, polling now stops and asks you to reconnect in Settings. Previously it kept retrying the bad password in the background, which could lock the Dexcom account
+- History no longer has gaps after sleep or an outage — polls now fetch enough readings to cover the time since the last one (up to 24 hours)
+- The delta (e.g. "+3") is hidden when the previous reading is more than ~10 minutes old, instead of showing a misleading jump across a gap. Applies to the menu bar/tray, popup, and chart hover
+- Reading history is only written to disk when new readings arrive, not on every poll
+
+### Fixed (macOS)
+- Running the test suite no longer overwrites your color settings or logs in to Dexcom with your saved credentials
+- Time in Range, GMI, and chart ranges are computed faster
+
+### Fixed (Windows)
+- The update-available notification is now shown on the UI thread (it was raised from a background thread)
+- The popup's once-a-second timer only runs while the popup is visible
+- Fixed a possible crash when tray icon text could not be fit at any font size
+
+### Fixed (Linux)
+- A failed login at startup (e.g. before the network is up) now retries automatically instead of staying on an error until you click Refresh
+- Time in Range and chart drawing do less work per update
+
+### Fixed (KDE Plasma)
+- A temporary Dexcom server error during login no longer shows "Invalid credentials" and permanently stops the widget — it now retries
+- Re-logging in after an expired session no longer re-downloads 90 days of history
+- Reading colors now follow your configured alert thresholds
+- "Stale data" warning now appears after 20 minutes, matching the other platforms
+- The poll interval setting is now respected
+
+### Changed
+- README: Windows credentials are stored in Windows Credential Manager
+
 ## [1.8.1] - 2026-07-01
 
 Cross-platform bug-fix release from a full audit of the macOS, Linux, Windows, and KDE code.

@@ -274,9 +274,9 @@ public partial class GlucoseChartControl : UserControl
         string timeLine  = reading.Date.ToLocalTime().ToString("h:mm tt");
         string? deltaLine = null;
         var idx = readings.IndexOf(reading);
-        if (idx >= 0 && idx < readings.Count - 1)
+        if (idx >= 0 && idx < readings.Count - 1 &&
+            GlucoseMonitor.Delta(readings[idx + 1], reading) is int delta)
         {
-            int delta = reading.Value - readings[idx + 1].Value;
             string sign = delta >= 0 ? "+" : "";
             deltaLine = unit == GlucoseUnit.MmolL
                 ? $"{sign}{delta / 18.0:F1} mmol/L"
@@ -339,8 +339,9 @@ public partial class GlucoseChartControl : UserControl
 
     private List<GlucoseReading> GetReadings()
     {
+        // RecentReadings is newest-first, so stop at the first reading outside the range.
         var cutoff = DateTime.UtcNow - _selectedRange.Interval();
-        return _monitor.RecentReadings.Where(r => r.Date >= cutoff).ToList();
+        return _monitor.RecentReadings.TakeWhile(r => r.Date >= cutoff).ToList();
     }
 
     private FormattedText MakeFormattedText(string text, double emSize, Brush brush, bool bold = false)

@@ -186,6 +186,17 @@ public class TrayManager : IDisposable
 
     private void OnUpdateAvailable(string newVersion, string downloadUrl)
     {
+        // UpdateChecker raises this from a thread-pool thread; the tray icon and
+        // _pendingUpdateUrl belong to the UI thread.
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null) return;
+        if (!dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(() => OnUpdateAvailable(newVersion, downloadUrl));
+            return;
+        }
+        if (_disposed) return;
+
         _pendingUpdateUrl = downloadUrl;
         _notifyIcon.BalloonTipTitle = "DexBar Update Available";
         _notifyIcon.BalloonTipText  = $"Version {newVersion} is available. Click to install.";
@@ -303,19 +314,17 @@ public class TrayManager : IDisposable
             path.CloseFigure();
             g.FillPath(bgBrush, path);
 
-            // Auto-fit: start large and shrink until text fits
+            // Auto-fit: start large and shrink until text fits (or the minimum size is reached)
             float fontSize = 90f;
-            Font font;
-            SizeF measured;
-            do
+            var font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+            var measured = g.MeasureString(text, font);
+            while ((measured.Width > size - 4 || measured.Height > size - 4) && fontSize > 16f)
             {
-                font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
-                measured = g.MeasureString(text, font);
-                if (measured.Width <= size - 4 && measured.Height <= size - 4)
-                    break;
                 font.Dispose();
                 fontSize -= 4f;
-            } while (fontSize > 16f);
+                font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+                measured = g.MeasureString(text, font);
+            }
 
             using (font)
             {

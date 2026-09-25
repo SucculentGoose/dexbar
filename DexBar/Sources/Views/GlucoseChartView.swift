@@ -85,7 +85,7 @@ struct GlucoseChartView: View {
                 .symbolSize(55)
                 .foregroundStyle(.white.opacity(0.9))
                 .annotation(position: .top, spacing: 4) {
-                    hoverLabel(hovered)
+                    hoverLabel(hovered, readings: readings)
                 }
             }
         }
@@ -137,12 +137,12 @@ struct GlucoseChartView: View {
 
     // MARK: - Helpers
 
-    private func hoverLabel(_ reading: GlucoseReading) -> some View {
+    private func hoverLabel(_ reading: GlucoseReading, readings: [GlucoseReading]) -> some View {
         VStack(spacing: 1) {
             HStack(spacing: 4) {
                 Text("\(reading.displayValue(unit: monitor.unit)) \(reading.trend.arrow)")
                     .font(.caption2.bold())
-                if let d = deltaFromPrevious(for: reading) {
+                if let d = deltaFromPrevious(for: reading, in: readings) {
                     Text(d)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -158,18 +158,12 @@ struct GlucoseChartView: View {
     }
 
     /// Change between this reading and the one immediately before it (older).
-    private func deltaFromPrevious(for reading: GlucoseReading) -> String? {
-        let all = monitor.recentReadings  // sorted newest first
-        guard let idx = all.firstIndex(where: { $0.id == reading.id }),
-              idx + 1 < all.count else { return nil }
-        let diff = reading.value - all[idx + 1].value
-        switch monitor.unit {
-        case .mgdL:
-            return diff >= 0 ? "+\(diff)" : "\(diff)"
-        case .mmolL:
-            let d = Double(diff) / 18.0
-            return d >= 0 ? String(format: "+%.1f", d) : String(format: "%.1f", d)
-        }
+    /// `readings` is the chart's newest-first window.
+    private func deltaFromPrevious(for reading: GlucoseReading, in readings: [GlucoseReading]) -> String? {
+        guard let idx = readings.firstIndex(where: { $0.id == reading.id }),
+              idx + 1 < readings.count,
+              let diff = ReadingHistory.delta(from: readings[idx + 1], to: reading) else { return nil }
+        return ReadingHistory.formatDelta(diff, unit: monitor.unit)
     }
 
     private func displayValue(_ reading: GlucoseReading) -> Double {

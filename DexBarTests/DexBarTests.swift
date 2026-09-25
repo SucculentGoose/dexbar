@@ -142,10 +142,19 @@ struct DexcomRawReadingTests {
 
 // MARK: - GlucoseMonitor.readingColor
 
+/// A monitor that never touches the user's real settings, reading history, or Dexcom account.
+@MainActor
+private func isolatedMonitor() -> GlucoseMonitor {
+    let suite = "com.dexbar.app.tests"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    return GlucoseMonitor(defaults: defaults, readingsURL: nil, autoConnect: false)
+}
+
 @MainActor
 struct GlucoseMonitorColorTests {
     private func monitor(value: Int) -> GlucoseMonitor {
-        let m = GlucoseMonitor()
+        let m = isolatedMonitor()
         m.alertUrgentLowThresholdMgdL = 55
         m.alertLowThresholdMgdL = 70
         m.alertHighThresholdMgdL = 180
@@ -181,7 +190,48 @@ struct GlucoseMonitorColorTests {
     }
 
     @Test func primaryWhenNoReading() {
-        let m = GlucoseMonitor()
+        let m = isolatedMonitor()
         #expect(m.readingColor == Color.primary)
+    }
+}
+
+// MARK: - ReadingHistory
+
+struct ReadingHistoryTests {
+    private func reading(_ value: Int, minutesAgo: Double) -> GlucoseReading {
+        GlucoseReading(value: value, trend: .flat, date: Date().addingTimeInterval(-minutesAgo * 60), trendRate: nil)
+    }
+
+    @Test func deltaBetweenConsecutiveReadings() {
+        #expect(ReadingHistory.delta(from: reading(100, minutesAgo: 5), to: reading(104, minutesAgo: 0)) == 4)
+    }
+
+    @Test func deltaIsNilAcrossAGap() {
+        #expect(ReadingHistory.delta(from: reading(100, minutesAgo: 180), to: reading(180, minutesAgo: 0)) == nil)
+    }
+
+    @Test func fetchCountCoversGap() {
+        let now = Date()
+        #expect(ReadingHistory.fetchCount(since: now.addingTimeInterval(-5 * 60), now: now) == 3)
+        #expect(ReadingHistory.fetchCount(since: now.addingTimeInterval(-60 * 60), now: now) == 14)
+        #expect(ReadingHistory.fetchCount(since: now.addingTimeInterval(-3 * 86400), now: now) == 288)
+        #expect(ReadingHistory.fetchCount(since: nil, now: now) == 288)
+    }
+
+    @Test func newestWithinStopsAtCutoff() {
+        let readings = [reading(1, minutesAgo: 0), reading(2, minutesAgo: 30), reading(3, minutesAgo: 300)]
+        #expect(readings.newest(within: 60 * 60).map(\.value) == [1, 2])
+    }
+
+    @Test func tirStatsSinglePass() {
+        let readings = [reading(50, minutesAgo: 0), reading(120, minutesAgo: 5), reading(200, minutesAgo: 10)]
+        let stats = TiRStats(readings: readings, lowThreshold: 70, highThreshold: 180)
+        #expect(stats.lowCount == 1 && stats.inRangeCount == 1 && stats.highCount == 1 && stats.total == 3)
+    }
+
+    @Test func formatDelta() {
+        #expect(ReadingHistory.formatDelta(3, unit: .mgdL) == "+3")
+        #expect(ReadingHistory.formatDelta(-4, unit: .mgdL) == "-4")
+        #expect(ReadingHistory.formatDelta(-9, unit: .mmolL) == "-0.5")
     }
 }

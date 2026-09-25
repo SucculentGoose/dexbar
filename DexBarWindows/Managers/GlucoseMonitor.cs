@@ -19,10 +19,13 @@ public class GlucoseMonitor : IDisposable
     // -------------------------------------------------------------------------
 
     private const int MaxReadings = 25_920;
-    private const int InitialFetchCount = 288;
-    private const int SubsequentFetchCount = 2;
+    private const int MaxFetchCount = 288;   // Share API limit (24 h of readings)
     private const int MaxAuthRetries = 3;
     private static readonly TimeSpan StaleThreshold = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan ReadingInterval = TimeSpan.FromMinutes(5);
+    // Readings further apart than this are not compared for a delta
+    // (allows one missed reading plus jitter).
+    private static readonly TimeSpan MaxDeltaGap = TimeSpan.FromMinutes(11);
     private static readonly TimeSpan AlertCooldown = TimeSpan.FromMinutes(15);
 
     private static readonly int[] RetryDelaysMs = { 3_000, 5_000, 10_000 };
@@ -94,12 +97,14 @@ public class GlucoseMonitor : IDisposable
 
     /// <summary>
     /// Delta between the two most recent readings (newest - second-newest), in mg/dL.
-    /// Null if fewer than 2 readings.
+    /// Null if fewer than 2 readings or if they are too far apart to compare.
     /// </summary>
     public int? GlucoseDelta =>
-        RecentReadings.Count >= 2
-            ? RecentReadings[0].Value - RecentReadings[1].Value
-            : null;
+        RecentReadings.Count >= 2 ? Delta(RecentReadings[1], RecentReadings[0]) : null;
+
+    /// <summary>newer.Value - older.Value, or null when the readings are too far apart.</summary>
+    public static int? Delta(GlucoseReading older, GlucoseReading newer) =>
+        newer.Date - older.Date <= MaxDeltaGap ? newer.Value - older.Value : null;
 
     /// <summary>
     /// Formatted delta string such as "+3" or "-0.2", respecting the configured unit.
@@ -135,11 +140,8 @@ public class GlucoseMonitor : IDisposable
     {
         get
         {
-            var cutoff = DateTime.UtcNow - Settings.StatsTimeRange.Interval();
-            var window = RecentReadings.Where(r => r.Date >= cutoff).ToList();
-
             int low = 0, inRange = 0, high = 0;
-            foreach (var r in window)
+            foreach (var r in StatsWindow())
             {
                 if (r.Value < Settings.AlertLowThresholdMgdL)
                     low++;
@@ -166,8 +168,7 @@ public class GlucoseMonitor : IDisposable
     {
         get
         {
-            var cutoff = DateTime.UtcNow - Settings.StatsTimeRange.Interval();
-            var window = RecentReadings.Where(r => r.Date >= cutoff).ToList();
+            var window = StatsWindow();
             if (window.Count == 0) return null;
 
             var mean = window.Average(r => r.Value);
@@ -182,26 +183,32 @@ public class GlucoseMonitor : IDisposable
     {
         get
         {
-            var cutoff = DateTime.UtcNow - Settings.StatsTimeRange.Interval();
-            var window = RecentReadings.Where(r => r.Date >= cutoff).ToList();
+            var window = StatsWindow();
             if (window.Count == 0) return 0;
 
-            var oldest = window.Min(r => r.Date);
-            var newest = window.Max(r => r.Date);
-            return (newest - oldest).TotalDays;
+            // Newest first, so the ends of the window are the extremes.
+            return (window[0].Date - window[^1].Date).TotalDays;
         }
     }
 
     /// <summary>
     /// Readings filtered to the selected chart time range, newest first.
     /// </summary>
-    public List<GlucoseReading> ChartReadings
+    public List<GlucoseReading> ChartReadings =>
+        NewestWithin(Settings.SelectedTimeRange.Interval());
+
+    private List<GlucoseReading> StatsWindow() =>
+        NewestWithin(Settings.StatsTimeRange.Interval());
+
+    /// <summary>
+    /// Readings newer than <paramref name="interval"/> ago. RecentReadings is sorted
+    /// newest-first, so this stops at the first older reading rather than scanning
+    /// the whole history.
+    /// </summary>
+    private List<GlucoseReading> NewestWithin(TimeSpan interval)
     {
-        get
-        {
-            var cutoff = DateTime.UtcNow - Settings.SelectedTimeRange.Interval();
-            return RecentReadings.Where(r => r.Date >= cutoff).ToList();
-        }
+        var cutoff = DateTime.UtcNow - interval;
+        return RecentReadings.TakeWhile(r => r.Date >= cutoff).ToList();
     }
 
     // -------------------------------------------------------------------------
@@ -299,6 +306,13 @@ public class GlucoseMonitor : IDisposable
 
     private void ScheduleTimerFromLastReading()
     {
+        // No service means we're stopped (or the password was rejected) — don't poll.
+        if (_service is null)
+        {
+            NextRefreshDate = null;
+            return;
+        }
+
         if (CurrentReading is null)
         {
             ScheduleTimer(Settings.RefreshInterval);
@@ -347,7 +361,8 @@ public class GlucoseMonitor : IDisposable
                 NotifyUpdate();
             });
 
-            var count = isInitial ? InitialFetchCount : SubsequentFetchCount;
+            // After a sleep or outage, request enough readings to fill the gap.
+            var count = isInitial ? MaxFetchCount : FetchCountSinceLastReading();
             List<GlucoseReading> fetched;
 
             try
@@ -384,6 +399,20 @@ public class GlucoseMonitor : IDisposable
                     await AuthenticateWithRetryAsync(_username, password);
                     fetched = await _service.GetLatestReadingsAsync(count);
                 }
+                catch (DexcomException authEx) when (authEx.ErrorType == DexcomErrorType.InvalidCredentials)
+                {
+                    // Retrying a rejected password only risks locking the Dexcom account.
+                    // Stop polling until the user reconnects in Settings.
+                    _service = null;
+                    await DisposeTimerAsync();
+                    PostToUi(() =>
+                    {
+                        State = new MonitorState.Error("Dexcom rejected the saved password — reconnect in Settings.");
+                        NextRefreshDate = null;
+                        NotifyUpdate();
+                    });
+                    return;
+                }
                 catch (Exception retryEx)
                 {
                     PostToUi(() =>
@@ -404,8 +433,9 @@ public class GlucoseMonitor : IDisposable
                 return;
             }
 
-            var merged = MergeReadings(fetched);
-            SaveReadingsToDisk(merged);
+            var merged = MergeReadings(fetched, out var added);
+            if (added > 0)
+                SaveReadingsToDisk(merged);
 
             var latest = merged.Count > 0 ? merged[0] : null;
 
@@ -430,6 +460,14 @@ public class GlucoseMonitor : IDisposable
         {
             _pollLock.Release();
         }
+    }
+
+    private int FetchCountSinceLastReading()
+    {
+        var readings = RecentReadings;
+        if (readings.Count == 0) return MaxFetchCount;
+        var missed = (int)((DateTime.UtcNow - readings[0].Date) / ReadingInterval) + 2;
+        return Math.Clamp(missed, 2, MaxFetchCount);
     }
 
     // -------------------------------------------------------------------------
@@ -468,15 +506,19 @@ public class GlucoseMonitor : IDisposable
     // Reading merge
     // -------------------------------------------------------------------------
 
-    private List<GlucoseReading> MergeReadings(IEnumerable<GlucoseReading> incoming)
+    private List<GlucoseReading> MergeReadings(IEnumerable<GlucoseReading> incoming, out int added)
     {
         var merged = new List<GlucoseReading>(RecentReadings);
         var existing = new HashSet<DateTime>(merged.Select(r => r.Date));
 
+        added = 0;
         foreach (var r in incoming)
         {
             if (existing.Add(r.Date))
+            {
                 merged.Add(r);
+                added++;
+            }
         }
 
         // Sort newest first and cap

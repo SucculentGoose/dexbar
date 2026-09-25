@@ -6,7 +6,7 @@
 ;   2. iscc installer.iss
 
 #define MyAppName "DexBar"
-#define MyAppVersion "1.8.1"
+#define MyAppVersion "1.8.2"
 #define MyAppPublisher "DexBar"
 #define MyAppExeName "DexBarWindows.exe"
 #define PublishDir "bin\Release\net8.0-windows\win-x64\publish"

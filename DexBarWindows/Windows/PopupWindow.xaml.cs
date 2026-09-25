@@ -71,10 +71,21 @@ public partial class PopupWindow : Window
         BuildChartRangeButtons();
         BuildStatsRangeButtons();
 
-        // 1-second tick for countdown / "X ago" labels
+        // 1-second tick for countdown / "X ago" labels, only while the popup is shown
         _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _tickTimer.Tick += (_, _) => UpdateTimerLabels();
-        _tickTimer.Start();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+            {
+                UpdateDisplay();
+                _tickTimer.Start();
+            }
+            else
+            {
+                _tickTimer.Stop();
+            }
+        };
 
         // Subscribe to monitor updates and do an initial render
         _monitor.OnUpdate += UpdateDisplay;
@@ -132,6 +143,9 @@ public partial class PopupWindow : Window
             Dispatcher.Invoke(UpdateDisplay);
             return;
         }
+
+        // Hidden popups are refreshed when they become visible again.
+        if (!IsVisible) return;
 
         var settings = _monitor.Settings;
         var reading  = _monitor.CurrentReading;

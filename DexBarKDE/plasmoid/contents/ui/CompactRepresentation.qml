@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.components 3.0 as PlasmaComponents3
 import org.kde.plasma.plasmoid
+import "../code/dexcom.js" as Dexcom
 import org.kde.kirigami 2.20 as Kirigami
 
 // Compact view: shown in the panel. Displays "94 → +3" in glucose color,
@@ -65,10 +66,11 @@ MouseArea {
     }
 
     function _glucoseColor(mgdl) {
-        if (mgdl < 55)   return "#FF3B30"
-        if (mgdl < 70)   return "#FF9500"
-        if (mgdl <= 180) return "#34C759"
-        if (mgdl <= 250) return "#FFCC00"
-        return "#FF3B30"
+        return Dexcom.glucoseColor(mgdl, {
+            urgentLow:  Plasmoid.configuration.alertUrgentLowMgdl,
+            low:        Plasmoid.configuration.alertLowMgdl,
+            high:       Plasmoid.configuration.alertHighMgdl,
+            urgentHigh: Plasmoid.configuration.alertUrgentHighMgdl
+        })
     }
 }

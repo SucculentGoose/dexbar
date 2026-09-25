@@ -11,6 +11,17 @@ const BASE_URLS = {
 
 const APP_ID = "d8665ade-9673-4e27-9ff6-92db4ce13d13"
 
+// Error strings passed to onError; main.qml branches on these.
+const ERR_INVALID_CREDENTIALS = "Invalid credentials."
+const ERR_SESSION_EXPIRED     = "Session expired."
+
+const STALE_MINUTES = 20
+const READING_INTERVAL_MS = 5 * 60 * 1000
+const MAX_FETCH_COUNT = 288
+// Readings further apart than this are not compared for a delta
+// (allows one missed reading plus jitter).
+const MAX_DELTA_GAP_MS = 11 * 60 * 1000
+
 const TREND_MAP = {
     "DoubleUp":       { arrow: "⇈", description: "rising quickly" },
     "SingleUp":       { arrow: "↑", description: "rising" },
@@ -33,13 +44,18 @@ function trendDescription(trend) {
     return (TREND_MAP[trend] || { description: "unknown" }).description
 }
 
-// Returns CSS color string matching DexBar thresholds from GlucoseMonitor.swift
-function glucoseColor(mgdl) {
-    if (mgdl < 55)   return "#FF3B30"  // urgent low  — red
-    if (mgdl < 70)   return "#FF9500"  // low         — orange
-    if (mgdl <= 180) return "#34C759"  // in range    — green
-    if (mgdl <= 250) return "#FFCC00"  // high        — yellow
-    return "#FF3B30"                    // urgent high — red
+// Returns CSS color string for a reading. `t` is the optional configured thresholds
+// { urgentLow, low, high, urgentHigh } in mg/dL; defaults match the other platforms.
+function glucoseColor(mgdl, t) {
+    const urgentLow  = t ? t.urgentLow  : 55
+    const low        = t ? t.low        : 70
+    const high       = t ? t.high       : 180
+    const urgentHigh = t ? t.urgentHigh : 250
+    if (mgdl < urgentLow)   return "#FF3B30"  // urgent low  — red
+    if (mgdl < low)         return "#FF9500"  // low         — orange
+    if (mgdl <= high)       return "#34C759"  // in range    — green
+    if (mgdl <= urgentHigh) return "#FFCC00"  // high        — yellow
+    return "#FF3B30"                          // urgent high — red
 }
 
 // Parse Dexcom WT timestamp: "Date(1234567890000)" → milliseconds since epoch, or null
@@ -66,7 +82,32 @@ function minutesAgo(timestampMs) {
 }
 
 function isStale(timestampMs) {
-    return minutesAgo(timestampMs) > 15
+    return minutesAgo(timestampMs) > STALE_MINUTES
+}
+
+// newer.value - older.value, or null when the readings are too far apart to compare
+function readingDelta(older, newer) {
+    if (newer.timestampMs - older.timestampMs > MAX_DELTA_GAP_MS) return null
+    return newer.value - older.value
+}
+
+// How many readings to request so the gap since lastReadingMs (e.g. after sleep)
+// is backfilled, capped at the API maximum.
+function fetchCountSince(lastReadingMs, nowMs) {
+    if (!lastReadingMs) return MAX_FETCH_COUNT
+    const missed = Math.floor((nowMs - lastReadingMs) / READING_INTERVAL_MS) + 2
+    return Math.min(Math.max(missed, 2), MAX_FETCH_COUNT)
+}
+
+// Dexcom reports both bad credentials and transient faults as HTTP 500; the body's
+// Code field tells them apart. Anything unrecognised is treated as retryable.
+function serverErrorMessage(responseText) {
+    let code = null
+    try { code = JSON.parse(responseText).Code } catch(e) {}
+    if (code === "SessionIdNotFound" || code === "SessionNotValid") return ERR_SESSION_EXPIRED
+    if (typeof code === "string" && (code.indexOf("Password") !== -1 || code.indexOf("AccountNotFound") !== -1))
+        return ERR_INVALID_CREDENTIALS
+    return "Dexcom server error (HTTP 500)."
 }
 
 // Merge incoming readings into history (both newest-first), dedupe by timestampMs,
@@ -101,7 +142,7 @@ function fetchAccountId(baseUrl, username, password, onSuccess, onError) {
         let accountId
         try { accountId = JSON.parse(text) } catch(e) { onError("Parse error"); return }
         if (!accountId || accountId === "00000000-0000-0000-0000-000000000000") {
-            onError("Invalid username or password.")
+            onError(ERR_INVALID_CREDENTIALS)
             return
         }
         onSuccess(accountId)
@@ -119,7 +160,7 @@ function fetchSessionId(baseUrl, accountId, password, onSuccess, onError) {
         let sessionId
         try { sessionId = JSON.parse(text) } catch(e) { onError("Parse error"); return }
         if (!sessionId || sessionId === "00000000-0000-0000-0000-000000000000") {
-            onError("Invalid credentials.")
+            onError(ERR_INVALID_CREDENTIALS)
             return
         }
         onSuccess(sessionId)
@@ -138,7 +179,7 @@ function fetchReadings(baseUrl, sessionId, maxCount, onSuccess, onError, minutes
     const xhr = new XMLHttpRequest()
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return
-        if (xhr.status === 500) { onError("Session expired."); return }
+        if (xhr.status === 500) { onError(serverErrorMessage(xhr.responseText)); return }
         if (xhr.status < 200 || xhr.status >= 300) { onError("HTTP " + xhr.status); return }
         let raw
         try { raw = JSON.parse(xhr.responseText) } catch(e) { onError("Parse error"); return }
@@ -166,7 +207,7 @@ function _post(url, body, onSuccess, onError) {
     const xhr = new XMLHttpRequest()
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return
-        if (xhr.status === 500) { onError("Invalid credentials."); return }
+        if (xhr.status === 500) { onError(serverErrorMessage(xhr.responseText)); return }
         if (xhr.status < 200 || xhr.status >= 300) { onError("HTTP " + xhr.status); return }
         onSuccess(xhr.responseText)
     }
