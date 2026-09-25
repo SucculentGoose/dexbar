@@ -340,7 +340,7 @@ final class PopupWindow {
 
     private func drawChart(cr: OpaquePointer) {
         guard let monitor else { return }
-        let readings = monitor.chartReadings.sorted { $0.date < $1.date }
+        let readings = Array(monitor.chartReadings.reversed())  // oldest first
         let w = Double(gtk_widget_get_width(chartArea))
         let h = Double(gtk_widget_get_height(chartArea))
 
@@ -561,7 +561,7 @@ final class PopupWindow {
 
     private func handleChartHover(x: Double, y: Double) {
         guard let monitor else { return }
-        let readings = monitor.chartReadings.sorted { $0.date < $1.date }
+        let readings = Array(monitor.chartReadings.reversed())  // oldest first
         guard !readings.isEmpty else { return }
 
         let w = Double(gtk_widget_get_width(chartArea))
@@ -593,17 +593,11 @@ final class PopupWindow {
     /// Calculates the delta between a reading and the one immediately before it.
     private func deltaFromPrevious(for reading: GlucoseReading) -> String? {
         guard let monitor else { return nil }
-        let all = monitor.recentReadings // sorted newest-first
+        let all = monitor.chartReadings // newest first
         guard let idx = all.firstIndex(where: { $0.date == reading.date }),
-              idx + 1 < all.count else { return nil }
-        let diff = reading.value - all[idx + 1].value
-        switch monitor.unit {
-        case .mgdL:
-            return diff >= 0 ? "+\(diff)" : "\(diff)"
-        case .mmolL:
-            let d = Double(diff) / 18.0
-            return d >= 0 ? String(format: "+%.1f", d) : String(format: "%.1f", d)
-        }
+              idx + 1 < all.count,
+              let diff = ReadingHistory.delta(from: all[idx + 1], to: reading) else { return nil }
+        return ReadingHistory.formatDelta(diff, unit: monitor.unit)
     }
 
     // MARK: - Time in Range Section

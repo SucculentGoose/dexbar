@@ -95,9 +95,10 @@ PlasmoidItem {
 
     function login(username, password, region) {
         root._baseUrl = Dexcom.BASE_URLS[region] || Dexcom.BASE_URLS["US"]
+        // _initialFetchDone is left alone so re-logins after an expired session fetch
+        // only new readings; disconnect() resets it.
         root.isLoading = true
         root.errorMessage = ""
-        root._initialFetchDone = false
         Dexcom.fetchAccountId(root._baseUrl, username, password,
             function(accountId) {
                 Dexcom.fetchSessionId(root._baseUrl, accountId, password,
@@ -117,7 +118,9 @@ PlasmoidItem {
     function fetchReadings() {
         if (!root._sessionId) return
         root.isLoading = true
-        const maxCount = root._initialFetchDone ? 2 : 26000
+        // After a sleep or outage, request enough readings to fill the gap.
+        const lastMs = root.readingHistory.length > 0 ? root.readingHistory[0].timestampMs : 0
+        const maxCount = root._initialFetchDone ? Dexcom.fetchCountSince(lastMs, Date.now()) : 26000
         const minutes = root._initialFetchDone ? 1440 : 129600
         Dexcom.fetchReadings(root._baseUrl, root._sessionId, maxCount,
             function(readings) {
@@ -133,7 +136,7 @@ PlasmoidItem {
             },
             function(err) {
                 root.isLoading = false
-                if (err.indexOf("expired") !== -1 || err.indexOf("Session") !== -1) {
+                if (err === Dexcom.ERR_SESSION_EXPIRED) {
                     root._sessionId = ""
                     root.isConnected = false
                     root._maybeAutoConnect()
@@ -162,7 +165,8 @@ PlasmoidItem {
 
     function _computeDelta(readings) {
         if (readings.length < 2) return ""
-        var delta = readings[0].value - readings[1].value
+        var delta = Dexcom.readingDelta(readings[1], readings[0])
+        if (delta === null) return ""
         var useMmol = Plasmoid.configuration.useMmol
         if (useMmol) {
             var dMmol = delta / 18.0
@@ -175,7 +179,7 @@ PlasmoidItem {
         root.errorMessage = msg
         root.isLoading = false
         // Don't auto-retry credential failures — repeated bad logins can lock the account
-        if (msg.indexOf("Invalid") !== -1) return
+        if (msg === Dexcom.ERR_INVALID_CREDENTIALS) return
         const u = Plasmoid.configuration.username
         const p = Plasmoid.configuration.password
         if (u && p) {
@@ -196,8 +200,9 @@ PlasmoidItem {
     function _scheduleNextPoll(latestReadingMs) {
         const nowMs = Date.now()
         const msSinceReading = nowMs - latestReadingMs
-        // Next reading expected in (300s - elapsed) + 15s grace
-        const nextMs = Math.max(15000, 315000 - msSinceReading)
+        const intervalMs = (Plasmoid.configuration.pollInterval || 300) * 1000
+        // Next reading expected in (interval - elapsed) + 15s grace
+        const nextMs = Math.max(15000, intervalMs + 15000 - msSinceReading)
         pollTimer.interval = nextMs
         pollTimer.restart()
         root.nextRefreshMs = nowMs + nextMs

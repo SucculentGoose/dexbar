@@ -23,13 +23,11 @@ final class GlucoseMonitor {
     var lastUpdated: Date?
 
     var chartReadings: [GlucoseReading] {
-        let cutoff = Date().addingTimeInterval(-selectedTimeRange.interval)
-        return recentReadings.filter { $0.date >= cutoff }
+        Array(recentReadings.newest(within: selectedTimeRange.interval))
     }
 
-    private var statsReadings: [GlucoseReading] {
-        let cutoff = Date().addingTimeInterval(-selectedStatsRange.interval)
-        return recentReadings.filter { $0.date >= cutoff }
+    private var statsReadings: ArraySlice<GlucoseReading> {
+        recentReadings.newest(within: selectedStatsRange.interval)
     }
 
     /// Actual days of data available for the selected stats range.
@@ -39,41 +37,36 @@ final class GlucoseMonitor {
     }
 
     var tirStats: TiRStats {
-        let readings = statsReadings
-        let lowCutoff  = alertLowThresholdMgdL
-        let highCutoff = alertHighThresholdMgdL
-        let low  = readings.filter { Double($0.value) < lowCutoff  }.count
-        let high = readings.filter { Double($0.value) > highCutoff }.count
-        return TiRStats(lowCount: low, inRangeCount: readings.count - low - high, highCount: high, total: readings.count)
+        TiRStats(readings: statsReadings, lowThreshold: alertLowThresholdMgdL, highThreshold: alertHighThresholdMgdL)
     }
 
     /// Glucose Management Indicator — estimated HbA1c % from mean glucose.
-    /// Formula: GMI = 3.31 + 0.02392 × mean_mg_dL
     var gmi: Double? {
-        let readings = statsReadings
-        guard !readings.isEmpty else { return nil }
-        let mean = Double(readings.reduce(0) { $0 + $1.value }) / Double(readings.count)
-        return 3.31 + 0.02392 * mean
+        ReadingHistory.gmi(statsReadings)
     }
 
-    // Settings (persisted via AppStorage in SettingsView; mirrored here)
-    var unit: GlucoseUnit = GlucoseUnit(rawValue: UserDefaults.standard.string(forKey: "glucoseUnit") ?? "") ?? .mgdL
-    var refreshInterval: TimeInterval = (UserDefaults.standard.object(forKey: "refreshIntervalMinutes") as? Double ?? 5.0) * 60
+    // Settings are loaded from `defaults` in init(). Display/alert settings are written
+    // by SettingsView via AppStorage and mirrored here; the rest persist on change.
+    private let defaults: UserDefaults
+    private let readingsURL: URL?
+
+    var unit: GlucoseUnit = .mgdL
+    var refreshInterval: TimeInterval = 5 * 60
 
     // Alert settings
-    var alertUrgentHighEnabled: Bool = UserDefaults.standard.object(forKey: "alertUrgentHighEnabled") as? Bool ?? true
-    var alertUrgentHighThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertUrgentHighMgdL") as? Double ?? 250
-    var alertHighEnabled: Bool = UserDefaults.standard.object(forKey: "alertHighEnabled") as? Bool ?? true
-    var alertHighThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertHighMgdL") as? Double ?? 180
-    var alertLowEnabled: Bool = UserDefaults.standard.object(forKey: "alertLowEnabled") as? Bool ?? true
-    var alertLowThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertLowMgdL") as? Double ?? 70
-    var alertUrgentLowEnabled: Bool = UserDefaults.standard.object(forKey: "alertUrgentLowEnabled") as? Bool ?? true
-    var alertUrgentLowThresholdMgdL: Double = UserDefaults.standard.object(forKey: "alertUrgentLowMgdL") as? Double ?? 55
-    var alertRisingFastEnabled: Bool = UserDefaults.standard.object(forKey: "alertRisingFastEnabled") as? Bool ?? true
-    var alertDroppingFastEnabled: Bool = UserDefaults.standard.object(forKey: "alertDroppingFastEnabled") as? Bool ?? true
-    var alertStaleDataEnabled: Bool = UserDefaults.standard.object(forKey: "alertStaleDataEnabled") as? Bool ?? true
-    var alertCriticalEnabled: Bool = UserDefaults.standard.object(forKey: "alertCriticalEnabled") as? Bool ?? false {
-        didSet { UserDefaults.standard.set(alertCriticalEnabled, forKey: "alertCriticalEnabled") }
+    var alertUrgentHighEnabled = true
+    var alertUrgentHighThresholdMgdL: Double = 250
+    var alertHighEnabled = true
+    var alertHighThresholdMgdL: Double = 180
+    var alertLowEnabled = true
+    var alertLowThresholdMgdL: Double = 70
+    var alertUrgentLowEnabled = true
+    var alertUrgentLowThresholdMgdL: Double = 55
+    var alertRisingFastEnabled = true
+    var alertDroppingFastEnabled = true
+    var alertStaleDataEnabled = true
+    var alertCriticalEnabled = false {
+        didSet { defaults.set(alertCriticalEnabled, forKey: "alertCriticalEnabled") }
     }
     static let staleThreshold: TimeInterval = 20 * 60
 
@@ -83,45 +76,40 @@ final class GlucoseMonitor {
     }
 
     // Zone colors (persisted in UserDefaults as hex strings)
-    var colorUrgentLow: Color = Color(hex: UserDefaults.standard.string(forKey: "colorUrgentLow") ?? "") ?? Color(red: 0.85, green: 0.1, blue: 0.1) {
-        didSet { if let h = colorUrgentLow.toHex() { UserDefaults.standard.set(h, forKey: "colorUrgentLow") } }
+    private static let defaultUrgentColor = Color(red: 0.85, green: 0.1, blue: 0.1)
+    var colorUrgentLow: Color = GlucoseMonitor.defaultUrgentColor {
+        didSet { if let h = colorUrgentLow.toHex() { defaults.set(h, forKey: "colorUrgentLow") } }
     }
-    var colorLow: Color = Color(hex: UserDefaults.standard.string(forKey: "colorLow") ?? "") ?? .orange {
-        didSet { if let h = colorLow.toHex() { UserDefaults.standard.set(h, forKey: "colorLow") } }
+    var colorLow: Color = .orange {
+        didSet { if let h = colorLow.toHex() { defaults.set(h, forKey: "colorLow") } }
     }
-    var colorInRange: Color = Color(hex: UserDefaults.standard.string(forKey: "colorInRange") ?? "") ?? .green {
-        didSet { if let h = colorInRange.toHex() { UserDefaults.standard.set(h, forKey: "colorInRange") } }
+    var colorInRange: Color = .green {
+        didSet { if let h = colorInRange.toHex() { defaults.set(h, forKey: "colorInRange") } }
     }
-    var colorHigh: Color = Color(hex: UserDefaults.standard.string(forKey: "colorHigh") ?? "") ?? .yellow {
-        didSet { if let h = colorHigh.toHex() { UserDefaults.standard.set(h, forKey: "colorHigh") } }
+    var colorHigh: Color = .yellow {
+        didSet { if let h = colorHigh.toHex() { defaults.set(h, forKey: "colorHigh") } }
     }
-    var colorUrgentHigh: Color = Color(hex: UserDefaults.standard.string(forKey: "colorUrgentHigh") ?? "") ?? Color(red: 0.85, green: 0.1, blue: 0.1) {
-        didSet { if let h = colorUrgentHigh.toHex() { UserDefaults.standard.set(h, forKey: "colorUrgentHigh") } }
+    var colorUrgentHigh: Color = GlucoseMonitor.defaultUrgentColor {
+        didSet { if let h = colorUrgentHigh.toHex() { defaults.set(h, forKey: "colorUrgentHigh") } }
     }
-    var coloredMenuBar: Bool = UserDefaults.standard.bool(forKey: "coloredMenuBar") {
-        didSet { UserDefaults.standard.set(coloredMenuBar, forKey: "coloredMenuBar") }
+    var coloredMenuBar = false {
+        didSet { defaults.set(coloredMenuBar, forKey: "coloredMenuBar") }
     }
-    var menuBarStyle: MenuBarStyle = MenuBarStyle(rawValue: UserDefaults.standard.string(forKey: "menuBarStyle") ?? "") ?? .full {
-        didSet { UserDefaults.standard.set(menuBarStyle.rawValue, forKey: "menuBarStyle") }
+    var menuBarStyle: MenuBarStyle = .full {
+        didSet { defaults.set(menuBarStyle.rawValue, forKey: "menuBarStyle") }
     }
-    var showDelta: Bool = UserDefaults.standard.object(forKey: "showDelta") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(showDelta, forKey: "showDelta") }
+    var showDelta = true {
+        didSet { defaults.set(showDelta, forKey: "showDelta") }
     }
 
+    /// Change from the previous reading, or nil if there is no recent previous reading.
     var glucoseDelta: Int? {
         guard recentReadings.count >= 2 else { return nil }
-        return recentReadings[0].value - recentReadings[1].value
+        return ReadingHistory.delta(from: recentReadings[1], to: recentReadings[0])
     }
 
     func formattedDelta(unit: GlucoseUnit) -> String? {
-        guard let delta = glucoseDelta else { return nil }
-        switch unit {
-        case .mgdL:
-            return delta >= 0 ? "+\(delta)" : "\(delta)"
-        case .mmolL:
-            let dMmol = Double(delta) / 18.0
-            return dMmol >= 0 ? String(format: "+%.1f", dMmol) : String(format: "%.1f", dMmol)
-        }
+        glucoseDelta.map { ReadingHistory.formatDelta($0, unit: unit) }
     }
 
     var readingColor: Color {
@@ -139,14 +127,17 @@ final class GlucoseMonitor {
     var nextRefreshDate: Date?
     private var isStarting = false
     private var consecutiveStalePolls = 0
+    /// Set when Dexcom rejects the stored password. Automatic reconnects stay off
+    /// until the user connects again, since repeated failed logins can lock the account.
+    private var credentialsRejected = false
 
-    private static let readingsURL: URL? = {
+    static let defaultReadingsURL: URL? = {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("DexBar/readings.json")
     }()
 
     private func saveReadings() {
-        guard let url = Self.readingsURL else { return }
+        guard let url = readingsURL else { return }
         let readings = recentReadings
         Task.detached(priority: .utility) {
             let dir = url.deletingLastPathComponent()
@@ -157,14 +148,53 @@ final class GlucoseMonitor {
     }
 
     private func loadPersistedReadings() {
-        guard let url = Self.readingsURL,
+        guard let url = readingsURL,
               let data = try? Data(contentsOf: url),
               let readings = try? JSONDecoder().decode([GlucoseReading].self, from: data) else { return }
         recentReadings = readings
     }
 
-    init() {
+    private func loadSettings() {
+        func double(_ key: String, _ fallback: Double) -> Double { defaults.object(forKey: key) as? Double ?? fallback }
+        func bool(_ key: String, _ fallback: Bool) -> Bool { defaults.object(forKey: key) as? Bool ?? fallback }
+        func color(_ key: String) -> Color? { defaults.string(forKey: key).flatMap { Color(hex: $0) } }
+
+        unit = GlucoseUnit(rawValue: defaults.string(forKey: "glucoseUnit") ?? "") ?? .mgdL
+        refreshInterval = double("refreshIntervalMinutes", 5) * 60
+        alertUrgentHighEnabled = bool("alertUrgentHighEnabled", true)
+        alertUrgentHighThresholdMgdL = double("alertUrgentHighMgdL", 250)
+        alertHighEnabled = bool("alertHighEnabled", true)
+        alertHighThresholdMgdL = double("alertHighMgdL", 180)
+        alertLowEnabled = bool("alertLowEnabled", true)
+        alertLowThresholdMgdL = double("alertLowMgdL", 70)
+        alertUrgentLowEnabled = bool("alertUrgentLowEnabled", true)
+        alertUrgentLowThresholdMgdL = double("alertUrgentLowMgdL", 55)
+        alertRisingFastEnabled = bool("alertRisingFastEnabled", true)
+        alertDroppingFastEnabled = bool("alertDroppingFastEnabled", true)
+        alertStaleDataEnabled = bool("alertStaleDataEnabled", true)
+        alertCriticalEnabled = bool("alertCriticalEnabled", false)
+        if let c = color("colorUrgentLow") { colorUrgentLow = c }
+        if let c = color("colorLow") { colorLow = c }
+        if let c = color("colorInRange") { colorInRange = c }
+        if let c = color("colorHigh") { colorHigh = c }
+        if let c = color("colorUrgentHigh") { colorUrgentHigh = c }
+        coloredMenuBar = defaults.bool(forKey: "coloredMenuBar")
+        menuBarStyle = MenuBarStyle(rawValue: defaults.string(forKey: "menuBarStyle") ?? "") ?? .full
+        showDelta = bool("showDelta", true)
+    }
+
+    /// - Parameters:
+    ///   - defaults: settings store; tests pass an isolated suite.
+    ///   - readingsURL: where reading history is persisted; nil disables persistence.
+    ///   - autoConnect: log in with stored credentials and watch for wake. Off in tests.
+    init(defaults: UserDefaults = .standard,
+         readingsURL: URL? = GlucoseMonitor.defaultReadingsURL,
+         autoConnect: Bool = true) {
+        self.defaults = defaults
+        self.readingsURL = readingsURL
+        loadSettings()
         loadPersistedReadings()
+        guard autoConnect else { return }
         Task { @MainActor in
             await autoConnectIfNeeded()
         }
@@ -179,8 +209,9 @@ final class GlucoseMonitor {
     }
 
     private func autoConnectIfNeeded() async {
-        let username = UserDefaults.standard.string(forKey: "dexcomUsername") ?? ""
-        let regionRaw = UserDefaults.standard.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
+        guard !credentialsRejected else { return }
+        let username = defaults.string(forKey: "dexcomUsername") ?? ""
+        let regionRaw = defaults.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
         guard !username.isEmpty,
               let password = try? KeychainService.load(key: "password"),
               !password.isEmpty else { return }
@@ -195,17 +226,17 @@ final class GlucoseMonitor {
         isStarting = true
         defer { isStarting = false }
         consecutiveStalePolls = 0
+        credentialsRejected = false
         service = DexcomService(region: region)
         state = .loading
         do {
             try await service?.authenticate(username: username, password: password)
+        } catch DexcomError.invalidCredentials {
+            stopPolling(credentialsError: DexcomError.invalidCredentials.localizedDescription)
+            return
         } catch {
             state = .error(error.localizedDescription)
-            if case DexcomError.invalidCredentials = error {
-                // Invalid credentials should not auto-retry
-            } else {
-                scheduleTimer()
-            }
+            scheduleTimer()
             return
         }
         await refresh(initialLoad: true)
@@ -235,6 +266,17 @@ final class GlucoseMonitor {
 
     // MARK: - Private
 
+    /// Stops automatic polling after Dexcom rejects the stored password; retrying
+    /// with the same password only risks locking the account.
+    private func stopPolling(credentialsError message: String) {
+        timer?.invalidate()
+        timer = nil
+        nextRefreshDate = nil
+        service = nil
+        credentialsRejected = true
+        state = .error(message)
+    }
+
     /// Schedule the next auto-refresh at `lastReadingDate + refreshInterval`.
     /// If that time is already past (or no reading yet), waits at least 30 s to avoid hammering the API.
     private func scheduleTimer(after lastReadingDate: Date? = nil) {
@@ -260,7 +302,10 @@ final class GlucoseMonitor {
     private func refresh(initialLoad: Bool = false) async {
         guard let service else { return }
         state = .loading
-        let maxCount = initialLoad ? 288 : 2
+        // After a sleep or outage, request enough readings to fill the gap.
+        let maxCount = initialLoad
+            ? ReadingHistory.maxFetchCount
+            : ReadingHistory.fetchCount(since: recentReadings.first?.date)
         do {
             let newReadings = try await service.getLatestReadings(maxCount: maxCount)
             let reading = newReadings[0]
@@ -270,16 +315,18 @@ final class GlucoseMonitor {
                 consecutiveStalePolls = 0
             }
             currentReading = reading
-            // Merge new readings into history deduplicating by date, cap at 288
+            // Merge new readings into history deduplicating by date
             let existingDates = Set(recentReadings.map { $0.date })
             let toAdd = newReadings.filter { !existingDates.contains($0.date) }
-            let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
-            recentReadings = Array(merged.prefix(25920))  // 90 days × 288 readings/day
+            if !toAdd.isEmpty {
+                let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
+                recentReadings = Array(merged.prefix(25920))  // 90 days × 288 readings/day
+                saveReadings()
+            }
             lastUpdated = Date()
             state = .connected
             await evaluateAlerts(reading: reading)
             await evaluateStaleAlert(reading: reading)
-            saveReadings()
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired, DexcomError.invalidCredentials {
             await reAuthenticateIfPossible()
@@ -303,8 +350,8 @@ final class GlucoseMonitor {
     }
 
     private func reAuthenticateIfPossible() async {
-        let username = UserDefaults.standard.string(forKey: "dexcomUsername") ?? ""
-        let regionRaw = UserDefaults.standard.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
+        let username = defaults.string(forKey: "dexcomUsername") ?? ""
+        let regionRaw = defaults.string(forKey: "dexcomRegion") ?? DexcomRegion.us.rawValue
         guard !username.isEmpty,
               let password = try? KeychainService.load(key: "password"),
               !password.isEmpty else {
@@ -325,13 +372,12 @@ final class GlucoseMonitor {
                 try await service?.authenticate(username: username, password: password)
                 await refresh(initialLoad: false)
                 return
-            } catch DexcomError.invalidCredentials, DexcomError.sessionExpired {
-                if attempt < delays.count - 1 {
-                    // Still failing — try again after next delay
-                    continue
-                }
-                state = .error("Session expired — reconnect in Settings")
-                scheduleTimer()
+            } catch DexcomError.invalidCredentials {
+                stopPolling(credentialsError: "Dexcom rejected the saved password — reconnect in Settings")
+                return
+            } catch DexcomError.sessionExpired where attempt < delays.count - 1 {
+                // Still failing — try again after next delay
+                continue
             } catch {
                 state = .error(error.localizedDescription)
                 scheduleTimer(after: currentReading?.date)

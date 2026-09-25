@@ -18,20 +18,14 @@ final class GlucoseMonitorLinux {
 
     // MARK: - Computed properties
 
+    /// Change from the previous reading, or nil if there is no recent previous reading.
     var glucoseDelta: Int? {
         guard recentReadings.count >= 2 else { return nil }
-        return recentReadings[0].value - recentReadings[1].value
+        return ReadingHistory.delta(from: recentReadings[1], to: recentReadings[0])
     }
 
     func formattedDelta(unit: GlucoseUnit) -> String? {
-        guard let delta = glucoseDelta else { return nil }
-        switch unit {
-        case .mgdL:
-            return delta >= 0 ? "+\(delta)" : "\(delta)"
-        case .mmolL:
-            let dMmol = Double(delta) / 18.0
-            return dMmol >= 0 ? String(format: "+%.1f", dMmol) : String(format: "%.1f", dMmol)
-        }
+        glucoseDelta.map { ReadingHistory.formatDelta($0, unit: unit) }
     }
 
     var isStale: Bool {
@@ -41,32 +35,21 @@ final class GlucoseMonitorLinux {
 
     static let staleThreshold: TimeInterval = 20 * 60
 
+    private var statsReadings: ArraySlice<GlucoseReading> {
+        recentReadings.newest(within: statsTimeRange.interval)
+    }
+
     var tirStats: TiRStats {
-        let cutoff = Date().addingTimeInterval(-statsTimeRange.interval)
-        let readings = recentReadings.filter { $0.date >= cutoff }
-        let low  = readings.filter { Double($0.value) < alertLowThresholdMgdL  }.count
-        let high = readings.filter { Double($0.value) > alertHighThresholdMgdL }.count
-        return TiRStats(
-            lowCount: low,
-            inRangeCount: readings.count - low - high,
-            highCount: high,
-            total: readings.count
-        )
+        TiRStats(readings: statsReadings, lowThreshold: alertLowThresholdMgdL, highThreshold: alertHighThresholdMgdL)
     }
 
     var gmi: Double? {
-        let cutoff = Date().addingTimeInterval(-statsTimeRange.interval)
-        let readings = recentReadings.filter { $0.date >= cutoff }
-        guard !readings.isEmpty else { return nil }
-        let mean = Double(readings.reduce(0) { $0 + $1.value }) / Double(readings.count)
-        return 3.31 + 0.02392 * mean
+        ReadingHistory.gmi(statsReadings)
     }
 
     /// Actual days of data available for the selected stats range.
     var statsDataSpanDays: Double {
-        let cutoff = Date().addingTimeInterval(-statsTimeRange.interval)
-        let readings = recentReadings.filter { $0.date >= cutoff }
-        guard let oldest = readings.last?.date else { return 0 }
+        guard let oldest = statsReadings.last?.date else { return 0 }
         return Date().timeIntervalSince(oldest) / 86400
     }
 
@@ -77,9 +60,9 @@ final class GlucoseMonitorLinux {
         set { defaults.set(newValue.rawValue, forKey: "selectedTimeRange") }
     }
 
+    /// Readings in the selected chart range, newest first.
     var chartReadings: [GlucoseReading] {
-        let cutoff = Date().addingTimeInterval(-selectedTimeRange.interval)
-        return recentReadings.filter { $0.date >= cutoff }
+        Array(recentReadings.newest(within: selectedTimeRange.interval))
     }
 
     /// Returns the hex color string for a single reading based on threshold settings.
@@ -210,6 +193,9 @@ final class GlucoseMonitorLinux {
     var nextRefreshDate: Date?
     private var isStarting = false
     private var consecutiveStalePolls = 0
+    /// Set when Dexcom rejects the stored password. Automatic reconnects stay off
+    /// until the user connects again, since repeated failed logins can lock the account.
+    private var credentialsRejected = false
 
     private static let readingsURL: URL? = {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -232,11 +218,17 @@ final class GlucoseMonitorLinux {
         service = DexcomService(region: region)
         state = .loading
         consecutiveStalePolls = 0
+        credentialsRejected = false
         onUpdate?()
         do {
             try await service?.authenticate(username: username, password: password)
+        } catch DexcomError.invalidCredentials {
+            stopPolling(credentialsError: DexcomError.invalidCredentials.localizedDescription)
+            return
         } catch {
+            // Often the network isn't up yet at login — keep retrying.
             state = .error(error.localizedDescription)
+            scheduleTimer()
             onUpdate?()
             return
         }
@@ -266,7 +258,20 @@ final class GlucoseMonitorLinux {
 
     // MARK: - Private helpers
 
+    /// Stops automatic polling after Dexcom rejects the stored password; retrying
+    /// with the same password only risks locking the account.
+    private func stopPolling(credentialsError message: String) {
+        timer?.invalidate()
+        timer = nil
+        nextRefreshDate = nil
+        service = nil
+        credentialsRejected = true
+        state = .error(message)
+        onUpdate?()
+    }
+
     private func autoConnectIfNeeded() async {
+        guard !credentialsRejected else { return }
         let username = defaults.string(forKey: "dexcomUsername") ?? ""
         guard !username.isEmpty else { return }
 #if canImport(CLibSecret)
@@ -307,7 +312,10 @@ final class GlucoseMonitorLinux {
         guard let service else { return }
         state = .loading
         onUpdate?()
-        let maxCount = initialLoad ? 288 : 2
+        // After a sleep or outage, request enough readings to fill the gap.
+        let maxCount = initialLoad
+            ? ReadingHistory.maxFetchCount
+            : ReadingHistory.fetchCount(since: recentReadings.first?.date)
         do {
             let newReadings = try await service.getLatestReadings(maxCount: maxCount)
             let reading = newReadings[0]
@@ -319,13 +327,15 @@ final class GlucoseMonitorLinux {
             currentReading = reading
             let existingDates = Set(recentReadings.map { $0.date })
             let toAdd = newReadings.filter { !existingDates.contains($0.date) }
-            let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
-            recentReadings = Array(merged.prefix(25920))
+            if !toAdd.isEmpty {
+                let merged = (toAdd + recentReadings).sorted { $0.date > $1.date }
+                recentReadings = Array(merged.prefix(25920))
+                saveReadings()
+            }
             lastUpdated = Date()
             state = .connected
             evaluateAlerts(reading: reading)
             evaluateStaleAlert(reading: reading)
-            saveReadings()
             scheduleTimer(after: reading.date)
         } catch DexcomError.sessionExpired, DexcomError.invalidCredentials {
             await reAuthenticateIfPossible()
@@ -371,14 +381,12 @@ final class GlucoseMonitorLinux {
                 try await service?.authenticate(username: username, password: password)
                 await refresh(initialLoad: false)
                 return
-            } catch DexcomError.invalidCredentials, DexcomError.sessionExpired {
-                if attempt < delays.count - 1 {
-                    // Still failing — try again after next delay
-                    continue
-                }
-                state = .error("Session expired — reconnect in Settings")
-                scheduleTimer()
-                onUpdate?()
+            } catch DexcomError.invalidCredentials {
+                stopPolling(credentialsError: "Dexcom rejected the saved password — reconnect in Settings")
+                return
+            } catch DexcomError.sessionExpired where attempt < delays.count - 1 {
+                // Still failing — try again after next delay
+                continue
             } catch {
                 state = .error(error.localizedDescription)
                 scheduleTimer(after: currentReading?.date)

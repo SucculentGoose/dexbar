@@ -21,7 +21,7 @@ A native menu bar / system tray app that displays real-time blood glucose readin
   - Rising fast (↑ ⇈)
   - Dropping fast (↓ ⇊)
 - **Alert cooldowns** — same-type alerts won't repeat within 15 minutes
-- **Secure credential storage** — username and password stored in macOS Keychain / Linux Secret Service / Windows settings
+- **Secure credential storage** — username and password stored in macOS Keychain / Linux Secret Service / Windows Credential Manager (the KDE widget uses its Plasma config file — see below)
 - **Auto-connect on launch** — reconnects automatically using saved credentials
 - **Region support** — US, Outside US, and Japan Dexcom Share endpoints
 

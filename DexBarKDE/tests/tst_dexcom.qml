@@ -28,12 +28,33 @@ Item {
             }
             return map[trend] || "unknown"
         }
-        function glucoseColor(mgdl) {
-            if (mgdl < 55)   return "#FF3B30"
-            if (mgdl < 70)   return "#FF9500"
-            if (mgdl <= 180) return "#34C759"
-            if (mgdl <= 250) return "#FFCC00"
+        function glucoseColor(mgdl, t) {
+            const urgentLow  = t ? t.urgentLow  : 55
+            const low        = t ? t.low        : 70
+            const high       = t ? t.high       : 180
+            const urgentHigh = t ? t.urgentHigh : 250
+            if (mgdl < urgentLow)   return "#FF3B30"
+            if (mgdl < low)         return "#FF9500"
+            if (mgdl <= high)       return "#34C759"
+            if (mgdl <= urgentHigh) return "#FFCC00"
             return "#FF3B30"
+        }
+        function readingDelta(older, newer) {
+            if (newer.timestampMs - older.timestampMs > 11 * 60 * 1000) return null
+            return newer.value - older.value
+        }
+        function fetchCountSince(lastReadingMs, nowMs) {
+            if (!lastReadingMs) return 288
+            const missed = Math.floor((nowMs - lastReadingMs) / (5 * 60 * 1000)) + 2
+            return Math.min(Math.max(missed, 2), 288)
+        }
+        function serverErrorMessage(responseText) {
+            let code = null
+            try { code = JSON.parse(responseText).Code } catch(e) {}
+            if (code === "SessionIdNotFound" || code === "SessionNotValid") return "Session expired."
+            if (typeof code === "string" && (code.indexOf("Password") !== -1 || code.indexOf("AccountNotFound") !== -1))
+                return "Invalid credentials."
+            return "Dexcom server error (HTTP 500)."
         }
         function parseWt(wt) {
             if (typeof wt !== "string") return null
@@ -173,6 +194,49 @@ Item {
             compare(incoming.length, 1)
             compare(history[0].timestampMs, 2000)
             compare(incoming[0].timestampMs, 3000)
+        }
+    }
+
+    TestCase {
+        name: "GlucoseColorThresholds"
+        function test_customThresholds() {
+            const t = { urgentLow: 60, low: 80, high: 160, urgentHigh: 220 }
+            compare(root.dexcom.glucoseColor(59, t),  "#FF3B30")
+            compare(root.dexcom.glucoseColor(75, t),  "#FF9500")
+            compare(root.dexcom.glucoseColor(160, t), "#34C759")
+            compare(root.dexcom.glucoseColor(200, t), "#FFCC00")
+            compare(root.dexcom.glucoseColor(221, t), "#FF3B30")
+        }
+    }
+
+    TestCase {
+        name: "ReadingDelta"
+        function test_consecutiveReadings() {
+            compare(root.dexcom.readingDelta({ value: 100, timestampMs: 0 }, { value: 104, timestampMs: 300000 }), 4)
+        }
+        function test_gapReturnsNull() {
+            compare(root.dexcom.readingDelta({ value: 100, timestampMs: 0 }, { value: 180, timestampMs: 3 * 3600000 }), null)
+        }
+    }
+
+    TestCase {
+        name: "FetchCountSince"
+        function test_counts() {
+            const now = 10 * 86400000
+            compare(root.dexcom.fetchCountSince(now - 300000, now), 3)
+            compare(root.dexcom.fetchCountSince(now - 3600000, now), 14)
+            compare(root.dexcom.fetchCountSince(now - 3 * 86400000, now), 288)
+            compare(root.dexcom.fetchCountSince(0, now), 288)
+        }
+    }
+
+    TestCase {
+        name: "ServerErrorMessage"
+        function test_mapping() {
+            compare(root.dexcom.serverErrorMessage('{"Code":"SessionIdNotFound"}'), "Session expired.")
+            compare(root.dexcom.serverErrorMessage('{"Code":"AccountPasswordInvalid"}'), "Invalid credentials.")
+            compare(root.dexcom.serverErrorMessage('{"Code":"SSO_InternalError"}'), "Dexcom server error (HTTP 500).")
+            compare(root.dexcom.serverErrorMessage("<html>oops</html>"), "Dexcom server error (HTTP 500).")
         }
     }
 }
