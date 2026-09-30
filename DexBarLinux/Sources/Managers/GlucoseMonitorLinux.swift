@@ -246,7 +246,7 @@ final class GlucoseMonitorLinux {
     }
 
     func refreshNow() async {
-        await refresh(initialLoad: false)
+        await refresh(initialLoad: false, manual: true)
     }
 
     func updateRefreshInterval(_ interval: TimeInterval) {
@@ -308,7 +308,7 @@ final class GlucoseMonitorLinux {
         RunLoop.main.add(timer!, forMode: .default)
     }
 
-    private func refresh(initialLoad: Bool = false) async {
+    private func refresh(initialLoad: Bool = false, manual: Bool = false) async {
         guard let service else { return }
         state = .loading
         onUpdate?()
@@ -319,10 +319,13 @@ final class GlucoseMonitorLinux {
         do {
             let newReadings = try await service.getLatestReadings(maxCount: maxCount)
             let reading = newReadings[0]
-            if reading.date == currentReading?.date {
-                consecutiveStalePolls += 1
-            } else {
+            let isStale = reading.date == currentReading?.date
+            // A manual refresh with no new reading keeps the existing schedule
+            // rather than counting toward the stale-poll backoff.
+            if !isStale {
                 consecutiveStalePolls = 0
+            } else if !manual {
+                consecutiveStalePolls += 1
             }
             currentReading = reading
             let existingDates = Set(recentReadings.map { $0.date })
@@ -336,7 +339,9 @@ final class GlucoseMonitorLinux {
             state = .connected
             evaluateAlerts(reading: reading)
             evaluateStaleAlert(reading: reading)
-            scheduleTimer(after: reading.date)
+            if !(manual && isStale && timer?.isValid == true) {
+                scheduleTimer(after: reading.date)
+            }
         } catch DexcomError.sessionExpired, DexcomError.invalidCredentials {
             await reAuthenticateIfPossible()
         } catch DexcomError.serverError(let code) where code == 429 {

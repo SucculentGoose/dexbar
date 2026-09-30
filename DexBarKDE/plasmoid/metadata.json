@@ -13,7 +13,7 @@
         "Id": "org.kde.plasma.dexbar",
         "License": "MIT",
         "Name": "DexBar",
-        "Version": "1.8.2",
+        "Version": "1.8.3",
         "Website": "https://github.com/SucculentGoose/dexbar"
     },
     "X-Plasma-API": "declarativeappletscript",
