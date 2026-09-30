@@ -317,6 +317,19 @@
                 sparkle:edSignature="eo0mD3DUbZNcKn1T9GPOcTG7TkQ28szHCW+shLPL/1waFBfkG98Zr/KfCpBvm+0JG3+TaKVPRE9MP4l1NCq5BA=="
             />
         </item>
+        <item>
+            <title>DexBar 1.8.3</title>
+            <pubDate>Wed, 30 Sep 2026 17:23:24 +0000</pubDate>
+            <sparkle:version>1.8.3</sparkle:version>
+            <sparkle:shortVersionString>1.8.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/SucculentGoose/dexbar/releases/download/v1.8.3/DexBar-v1.8.3.zip"
+                length="4367988"
+                type="application/octet-stream"
+                sparkle:edSignature="qQs3Qin8/9wCO1xJcf0hb+x3w5nvIp9prZYN9GnegVoKdCPqsnPvNsON1Ec00ukwTaNaguj0IK4yxys1s1BmCQ=="
+            />
+        </item>
         <!-- Releases are added here automatically by the GitHub Actions release workflow -->
     </channel>
 </rss>
