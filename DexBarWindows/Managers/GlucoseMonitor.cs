@@ -275,9 +275,14 @@ public class GlucoseMonitor : IDisposable
     /// </summary>
     public async Task RefreshNowAsync()
     {
+        var scheduled = NextRefreshDate;
         await DisposeTimerAsync();
-        await PollAsync(isInitial: false);
-        ScheduleTimerFromLastReading();
+        var gotNewReading = await PollAsync(isInitial: false, isManual: true);
+        // A manual refresh with no new reading keeps the existing schedule.
+        if (!gotNewReading && _service is not null && scheduled is DateTime next && next > DateTime.UtcNow)
+            ScheduleTimer(next - DateTime.UtcNow);
+        else
+            ScheduleTimerFromLastReading();
     }
 
     /// <summary>
@@ -347,12 +352,13 @@ public class GlucoseMonitor : IDisposable
     // Polling
     // -------------------------------------------------------------------------
 
-    private async Task PollAsync(bool isInitial)
+    /// <returns>True if the poll produced a reading newer than the current one.</returns>
+    private async Task<bool> PollAsync(bool isInitial, bool isManual = false)
     {
-        if (_service is null) return;
+        if (_service is null) return false;
 
         // Prevent concurrent polls
-        if (!await _pollLock.WaitAsync(0)) return;
+        if (!await _pollLock.WaitAsync(0)) return false;
         try
         {
             PostToUi(() =>
@@ -380,7 +386,7 @@ public class GlucoseMonitor : IDisposable
                         State = new MonitorState.Error("Session expired and no username to re-authenticate.");
                         NotifyUpdate();
                     });
-                    return;
+                    return false;
                 }
 
                 var password = CredentialStorage.LoadPassword();
@@ -391,7 +397,7 @@ public class GlucoseMonitor : IDisposable
                         State = new MonitorState.Error("Session expired. Please re-enter credentials.");
                         NotifyUpdate();
                     });
-                    return;
+                    return false;
                 }
 
                 try
@@ -411,7 +417,7 @@ public class GlucoseMonitor : IDisposable
                         NextRefreshDate = null;
                         NotifyUpdate();
                     });
-                    return;
+                    return false;
                 }
                 catch (Exception retryEx)
                 {
@@ -420,7 +426,7 @@ public class GlucoseMonitor : IDisposable
                         State = new MonitorState.Error(retryEx.Message);
                         NotifyUpdate();
                     });
-                    return;
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -430,7 +436,7 @@ public class GlucoseMonitor : IDisposable
                     State = new MonitorState.Error(ex.Message);
                     NotifyUpdate();
                 });
-                return;
+                return false;
             }
 
             var merged = MergeReadings(fetched, out var added);
@@ -439,10 +445,12 @@ public class GlucoseMonitor : IDisposable
 
             var latest = merged.Count > 0 ? merged[0] : null;
 
-            if (latest is not null && CurrentReading is not null && latest.Date == CurrentReading.Date)
-                _consecutiveStalePolls++;
-            else
+            var isStale = latest is not null && CurrentReading is not null && latest.Date == CurrentReading.Date;
+            // Manual refreshes don't count toward the stale-poll backoff.
+            if (!isStale)
                 _consecutiveStalePolls = 0;
+            else if (!isManual)
+                _consecutiveStalePolls++;
 
             PostToUi(() =>
             {
@@ -455,6 +463,8 @@ public class GlucoseMonitor : IDisposable
                 if (latest is not null)
                     EvaluateAlerts(latest);
             });
+
+            return !isStale;
         }
         finally
         {
